@@ -31,9 +31,9 @@
 <body>
   <h1>Values Survey: Present vs 2075</h1>
   <p class="hint">Click once inside each triangle to record the <strong>relative importance</strong> of three values:
+    <span class="pill">Maximising AI Usage</span>,
     <span class="pill">Global Human Equality</span>,
-    <span class="pill">Overcoming Climate Change</span>,
-    <span class="pill">Maximising AI Use</span>.
+    <span class="pill">Overcoming Climate Change</span>.
     Your click sets percentages that always sum to 100%.
   </p>
 
@@ -109,9 +109,9 @@
     if (!USER_ID) { USER_ID = uuid(); localStorage.setItem(KEY_USER_ID, USER_ID); }
 
     // ===== Plot config (Plotly Ternary) =====
-    const valueA = "Global Human Equality;
-    const valueB = "Overcoming Climate Change";
-    const valueC = "Maximising AI Use";
+    const valueA = "Maximising AI Usage";
+    const valueB = "Global Human Equality";
+    const valueC = "Overcoming Climate Change";
 
     function baseLayout(title) {
       return {
