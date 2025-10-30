@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Values Survey — Present vs 2075</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Plotly CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; line-height: 1.35; }
+    h1, h2 { margin: 0.5rem 0; }
+    .wrap { display: grid; grid-template-columns: 1fr; gap: 2rem; max-width: 1000px; }
+    .card { border: 1px solid #ddd; border-radius: 16px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .plot { width: 100%; height: 420px; }
+    .controls { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .hint { font-size: 0.95rem; color: #333; }
+    .muted { color: #666; font-size: 0.9rem; }
+    button { border: none; border-radius: 999px; padding: 0.6rem 1rem; cursor: pointer; }
+    button[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .ok { background: #0f766e; color: white; }
+    .warn { background: #b91c1c; color: white; }
+    .pill { background: #f1f5f9; border-radius: 999px; padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+    .footer { margin-top: 1.5rem; }
+    .small { font-size: 0.85rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+    .success { color: #0f766e; }
+    .error { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>Values Survey: Present vs 2075</h1>
+  <p class="hint">Click once inside each triangle to record the <strong>relative importance</strong> of three values:
+    <span class="pill">Global Human Equality</span>,
+    <span class="pill">Overcoming Climate Change</span>,
+    <span class="pill">Maximising AI Use</span>.
+    Your click sets percentages that always sum to 100%.
+  </p>
+
+  <div class="wrap">
+    <!-- PRESENT (2025) -->
+    <section class="card">
+      <h2>Present day (2025)</h2>
+      <div id="plotPresent" class="plot" role="img" aria-label="Ternary plot for present-day values"></div>
+      <div class="controls">
+        <span id="presentStatus" class="muted">Click once in the triangle to select your point.</span>
+        <button id="presentSubmit" class="ok" disabled>Submit 2025</button>
+        <button id="presentReset" class="warn" disabled>Reset</button>
+      </div>
+      <form id="presentForm" method="POST" action="https://formspree.io/f/mkgpzkan" style="display:none">
+        <input type="hidden" name="user_id" id="present_user_id">
+        <input type="hidden" name="a" id="present_a">
+        <input type="hidden" name="b" id="present_b">
+        <input type="hidden" name="c" id="present_c">
+        <input type="hidden" name="year" value="2025">
+        <input type="hidden" name="timestamp" id="present_timestamp">
+        <!-- Honeypot -->
+        <input type="text" name="_gotcha" style="display:none">
+      </form>
+    </section>
+
+    <!-- 2075 -->
+    <section class="card">
+      <h2>Future (2075)</h2>
+      <div id="plotFuture" class="plot" role="img" aria-label="Ternary plot for 2075 values"></div>
+      <div class="controls">
+        <span id="futureStatus" class="muted">Click once in the triangle to select your point.</span>
+        <button id="futureSubmit" class="ok" disabled>Submit 2075</button>
+        <button id="futureReset" class="warn" disabled>Reset</button>
+      </div>
+      <form id="futureForm" method="POST" action="https://formspree.io/f/mvgvqdng" style="display:none">
+        <input type="hidden" name="user_id" id="future_user_id">
+        <input type="hidden" name="a" id="future_a">
+        <input type="hidden" name="b" id="future_b">
+        <input type="hidden" name="c" id="future_c">
+        <input type="hidden" name="year" value="2075">
+        <input type="hidden" name="timestamp" id="future_timestamp">
+        <!-- Honeypot -->
+        <input type="text" name="_gotcha" style="display:none">
+      </form>
+    </section>
+  </div>
+
+  <div class="footer small muted">
+    <p><strong>Privacy:</strong> We collect anonymous coordinates only (no names/emails). Data are used for a UCD MIS20070 class project. Submitting indicates consent.</p>
+    <p>If you received help from AI tools, acknowledge: “Assistance received from Digital Society Assistant (GPT-5), OpenAI.”</p>
+  </div>
+
+  <script>
+    // ===== Helper functions =====
+    function uuid() { // simple user id; ok for this use-case
+      return 'anon-' + Math.random().toString(36).slice(2, 10);
+    }
+    function nowISO() { return new Date().toISOString(); }
+    function normalize(a,b,c) {
+      const s = a + b + c;
+      if (s === 0) return [0,0,0];
+      return [a/s, b/s, c/s];
+    }
+    function pct(x) { return Math.round(x * 1000) / 10; } // 1 decimal %
+
+    // Local storage keys prevent multiple submissions *per plot*
+    const KEY_PRESENT_LOCK = "values_present_submitted";
+    const KEY_FUTURE_LOCK  = "values_future_submitted";
+    const KEY_USER_ID      = "values_user_id";
+
+    // Ensure a persistent anon user_id
+    let USER_ID = localStorage.getItem(KEY_USER_ID);
+    if (!USER_ID) { USER_ID = uuid(); localStorage.setItem(KEY_USER_ID, USER_ID); }
+
+    // ===== Plot config (Plotly Ternary) =====
+    const valueA = "Global Human Equality;
+    const valueB = "Overcoming Climate Change";
+    const valueC = "Maximising AI Use";
+
+    function baseLayout(title) {
+      return {
+        title,
+        ternary: {
+          sum: 1,
+          aaxis: { title: valueA, min: 0, ticks: 'outside' },
+          baxis: { title: valueB, min: 0, ticks: 'outside' },
+          caxis: { title: valueC, min: 0, ticks: 'outside' }
+        },
+        margin: { l: 20, r: 20, t: 40, b: 20 }
+      };
+    }
+
+    function renderPlot(divId, title) {
+      const data = [{
+        type: 'scatterternary',
+        a: [], b: [], c: [],
+        mode: 'markers',
+        marker: { size: 10 }
+      }];
+      Plotly.newPlot(divId, data, baseLayout(title), {displayModeBar: false});
+    }
+
+    // Initialize plots
+    renderPlot('plotPresent', `Present (2025): ${valueA} / ${valueB} / ${valueC}`);
+    renderPlot('plotFuture',  `Future (2075): ${valueA} / ${valueB} / ${valueC}`);
+
+    // ===== State per plot =====
+    let presentPoint = null;
+    let futurePoint = null;
+
+    // ===== Click handlers =====
+    const presentStatus = document.getElementById('presentStatus');
+    const futureStatus  = document.getElementById('futureStatus');
+
+    const presentSubmit = document.getElementById('presentSubmit');
+    const futureSubmit  = document.getElementById('futureSubmit');
+
+    const presentReset = document.getElementById('presentReset');
+    const futureReset  = document.getElementById('futureReset');
+
+    // Plotly click events give the ternary coordinates as a,b,c on points[0]
+    const plotPresent = document.getElementById('plotPresent');
+    const plotFuture  = document.getElementById('plotFuture');
+
+    plotPresent.on('plotly_click', (e) => {
+      if (localStorage.getItem(KEY_PRESENT_LOCK)) {
+        presentStatus.innerHTML = "Submission already recorded for 2025 on this device.";
+        return;
+      }
+      const p = e.points?.[0];
+      if (!p) return;
+      let a = p.a ?? 0, b = p.b ?? 0, c = p.c ?? 0;
+      [a,b,c] = normalize(a,b,c);
+      presentPoint = {a,b,c};
+      // update the plot with a single marker
+      Plotly.react('plotPresent', [{
+        type: 'scatterternary', a: [a], b: [b], c: [c], mode: 'markers', marker: { size: 10 }
+      }], baseLayout(`Present (2025): ${valueA} / ${valueB} / ${valueC}`));
+      presentStatus.innerHTML = `Selected: ${pct(a)}% ${valueA} · ${pct(b)}% ${valueB} · ${pct(c)}% ${valueC}`;
+      presentSubmit.disabled = false;
+      presentReset.disabled = false;
+      // fill hidden form fields
+      document.getElementById('present_a').value = a.toFixed(3);
+      document.getElementById('present_b').value = b.toFixed(3);
+      document.getElementById('present_c').value = c.toFixed(3);
+      document.getElementById('present_user_id').value = USER_ID;
+      document.getElementById('present_timestamp').value = nowISO();
+    });
+
+    plotFuture.on('plotly_click', (e) => {
+      if (localStorage.getItem(KEY_FUTURE_LOCK)) {
+        futureStatus.innerHTML = "Submission already recorded for 2075 on this device.";
+        return;
+      }
+      const p = e.points?.[0];
+      if (!p) return;
+      let a = p.a ?? 0, b = p.b ?? 0, c = p.c ?? 0;
+      [a,b,c] = normalize(a,b,c);
+      futurePoint = {a,b,c};
+      Plotly.react('plotFuture', [{
+        type: 'scatterternary', a: [a], b: [b], c: [c], mode: 'markers', marker: { size: 10 }
+      }], baseLayout(`Future (2075): ${valueA} / ${valueB} / ${valueC}`));
+      futureStatus.innerHTML = `Selected: ${pct(a)}% ${valueA} · ${pct(b)}% ${valueB} · ${pct(c)}% ${valueC}`;
+      futureSubmit.disabled = false;
+      futureReset.disabled = false;
+      document.getElementById('future_a').value = a.toFixed(3);
+      document.getElementById('future_b').value = b.toFixed(3);
+      document.getElementById('future_c').value = c.toFixed(3);
+      document.getElementById('future_user_id').value = USER_ID;
+      document.getElementById('future_timestamp').value = nowISO();
+    });
+
+    // ===== Submit handlers (Formspree POST via fetch) =====
+    async function postForm(formEl) {
+      const endpoint = formEl.action;
+      const formData = new FormData(formEl);
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: formData
+      });
+      return resp.ok;
+    }
+
+    presentSubmit.addEventListener('click', async () => {
+      if (!presentPoint) return;
+      // Basic validation: a+b+c approx 1
+      const s = presentPoint.a + presentPoint.b + presentPoint.c;
+      if (Math.abs(s - 1) > 0.02) { presentStatus.innerHTML = "Please reselect (normalization error)."; return; }
+      presentSubmit.disabled = true;
+      const ok = await postForm(document.getElementById('presentForm'));
+      if (ok) {
+        localStorage.setItem(KEY_PRESENT_LOCK, "1");
+        presentStatus.innerHTML = "Thanks! Your 2025 response was recorded.";
+        presentStatus.classList.add('success');
+      } else {
+        presentStatus.innerHTML = "Submission error. Please try again.";
+        presentSubmit.disabled = false;
+        presentStatus.classList.add('error');
+      }
+    });
+
+    futureSubmit.addEventListener('click', async () => {
+      if (!futurePoint) return;
+      const s = futurePoint.a + futurePoint.b + futurePoint.c;
+      if (Math.abs(s - 1) > 0.02) { futureStatus.innerHTML = "Please reselect (normalization error)."; return; }
+      futureSubmit.disabled = true;
+      const ok = await postForm(document.getElementById('futureForm'));
+      if (ok) {
+        localStorage.setItem(KEY_FUTURE_LOCK, "1");
+        futureStatus.innerHTML = "Thanks! Your 2075 response was recorded.";
+        futureStatus.classList.add('success');
+      } else {
+        futureStatus.innerHTML = "Submission error. Please try again.";
+        futureSubmit.disabled = false;
+        futureStatus.classList.add('error');
+      }
+    });
+
+    // ===== Reset handlers (let user redo before submission) =====
+    presentReset.addEventListener('click', () => {
+      presentPoint = null;
+      presentSubmit.disabled = true; presentReset.disabled = true;
+      presentStatus.innerHTML = "Click once in the triangle to select your point.";
+      renderPlot('plotPresent', `Present (2025): ${valueA} / ${valueB} / ${valueC}`);
+    });
+
+    futureReset.addEventListener('click', () => {
+      futurePoint = null;
+      futureSubmit.disabled = true; futureReset.disabled = true;
+      futureStatus.innerHTML = "Click once in the triangle to select your point.";
+      renderPlot('plotFuture', `Future (2075): ${valueA} / ${valueB} / ${valueC}`);
+    });
+
+    // ===== Respect existing locks (if user reloads) =====
+    if (localStorage.getItem(KEY_PRESENT_LOCK)) {
+      presentStatus.innerHTML = "Submission already recorded for 2025 on this device.";
+    }
+    if (localStorage.getItem(KEY_FUTURE_LOCK)) {
+      futureStatus.innerHTML = "Submission already recorded for 2075 on this device.";
+    }
+  </script>
+</body>
+</html>
