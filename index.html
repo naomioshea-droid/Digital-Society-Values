@@ -1,242 +1,587 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Values Survey — Present vs 2075</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      margin: 2rem;
-      line-height: 1.4;
-    }
-    h1, h2 { margin: 0.5rem 0; }
-    .wrap { display: grid; gap: 2rem; max-width: 1000px; }
-    .card {
-      border: 1px solid #ddd;
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,.05);
-    }
-    .plot { width: 100%; height: 420px; }
-    .controls { display: flex; align-items: center; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
-    .muted { color: #666; font-size: 0.9rem; }
-    .ok { background: #0f766e; color: white; border: none; border-radius: 999px; padding: 0.6rem 1rem; cursor: pointer; }
-    .warn { background: #b91c1c; color: white; border: none; border-radius: 999px; padding: 0.6rem 1rem; cursor: pointer; }
-    .success { color: #0f766e; }
-    .error { color: #b91c1c; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Priority Survey: Present vs Future</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-wrapper {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+        
+        .chart-wrapper::before {
+            content: '⚠️ ONE CLICK ONLY';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            z-index: 10;
+        }
+        
+        .chart-wrapper:hover {
+            transform: translateY(-5px);
+        }
+        
+        .chart-title {
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+        }
+        
+        .ternary-plot {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .ternary-plot.locked {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .instructions {
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .instructions h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .instructions p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .stats {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .stats h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .axis-label {
+            font-weight: bold;
+            font-size: 14px;
+            fill: #333;
+            paint-order: stroke;
+            stroke: white;
+            stroke-width: 3px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .grid-line {
+            stroke: #ddd;
+            stroke-width: 1;
+        }
+        
+        .point {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .point:hover {
+            r: 8;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1em;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Values Survey: Present vs 2075</h1>
-  <p>Click inside each triangle to move your dot — this represents how you balance:</p>
-  <ul>
-    <li>Maximising AI Usage</li>
-    <li>Global Human Equality</li>
-    <li>Overcoming Climate Change</li>
-  </ul>
+    <div class="container">
+        <header>
+            <h1>Global Priorities Survey</h1>
+            <p class="subtitle">How do your priorities shift from present to future?</p>
+        </header>
+        
+        <div class="instructions">
+            <h2>📊 How to Use</h2>
+            <p><strong>⚠️ IMPORTANT: You can only click ONCE per chart!</strong> Think carefully before placing your point.</p>
+            <p><strong>Click anywhere</strong> inside each triangle to record your priority allocation. Your click represents how you would distribute focus across three critical global challenges.</p>
+            <p>The closer your click is to a corner, the more priority you're giving to that challenge. Points near the center represent balanced priorities.</p>
+            <p><strong>Challenge yourself:</strong> How do your priorities differ between today and 50 years from now?</p>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <div class="chart-title">Present Day - 2025</div>
+                <div class="chart-container">
+                    <svg class="ternary-plot" id="plot2025"></svg>
+                </div>
+            </div>
+            
+            <div class="chart-wrapper">
+                <div class="chart-title">Future - 2075</div>
+                <div class="chart-container">
+                    <svg class="ternary-plot" id="plot2075"></svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <h3>Response Statistics</h3>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">2025 Responses</div>
+                    <div class="stat-value" id="count2025">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">2075 Responses</div>
+                    <div class="stat-value" id="count2075">0</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button onclick="clearData('2025')">Clear 2025 Data</button>
+                <button onclick="clearData('2075')">Clear 2075 Data</button>
+                <button onclick="exportData()">Export All Data</button>
+            </div>
+        </div>
+    </div>
 
-  <div class="wrap">
-    <!-- 2025 -->
-    <section class="card">
-      <h2>Present Day (2025)</h2>
-      <div id="plotPresent" class="plot"></div>
-      <div class="controls">
-        <span id="presentStatus" class="muted">Click inside the triangle to select a point.</span>
-        <button id="presentSubmit" class="ok" disabled>Submit 2025</button>
-        <button id="presentReset" class="warn" disabled>Reset</button>
-      </div>
-    </section>
+    <script>
+        // Data storage
+        let data2025 = [];
+        let data2075 = [];
+        
+        // Track if user has responded
+        let hasResponded2025 = false;
+        let hasResponded2075 = false;
 
-    <!-- 2075 -->
-    <section class="card">
-      <h2>Future (2075)</h2>
-      <div id="plotFuture" class="plot"></div>
-      <div class="controls">
-        <span id="futureStatus" class="muted">Click inside the triangle to select a point.</span>
-        <button id="futureSubmit" class="ok" disabled>Submit 2075</button>
-        <button id="futureReset" class="warn" disabled>Reset</button>
-      </div>
-    </section>
-  </div>
+        // Chart configuration
+        const config = {
+            width: 500,
+            height: 500,
+            margin: 100,
+            labels: {
+                A: 'Maximising AI Usage',
+                B: 'Global Human Equality',
+                C: 'Overcoming Climate Change'
+            }
+        };
 
-  <div class="footer small muted">
-    <p><strong>Privacy:</strong> Anonymous responses, used only for UCD MIS20070.</p>
-  </div>
+        // Initialize both charts
+        function initChart(svgId, year) {
+            const svg = d3.select(`#${svgId}`);
+            const container = svg.node().parentElement;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            svg.attr('width', width).attr('height', height);
+            
+            const size = Math.min(width, height) - 2 * config.margin;
+            const h = size * Math.sqrt(3) / 2;
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Triangle vertices
+            const vertices = {
+                A: { x: centerX, y: centerY - h * 2/3 },
+                B: { x: centerX - size/2, y: centerY + h/3 },
+                C: { x: centerX + size/2, y: centerY + h/3 }
+            };
+            
+            // Clear previous content
+            svg.selectAll('*').remove();
+            
+            const g = svg.append('g');
+            
+            // Draw grid lines
+            for (let i = 0; i <= 10; i++) {
+                const t = i / 10;
+                
+                // Lines parallel to BC
+                const p1 = interpolateVertex(vertices.B, vertices.C, 0, t);
+                const p2 = interpolateVertex(vertices.B, vertices.C, 1, t);
+                g.append('line')
+                    .attr('x1', p1.x).attr('y1', p1.y)
+                    .attr('x2', p2.x).attr('y2', p2.y)
+                    .attr('class', 'grid-line');
+                
+                // Lines parallel to AC
+                const p3 = interpolateVertex(vertices.A, vertices.C, 0, t);
+                const p4 = interpolateVertex(vertices.A, vertices.C, 1, t);
+                g.append('line')
+                    .attr('x1', p3.x).attr('y1', p3.y)
+                    .attr('x2', p4.x).attr('y2', p4.y)
+                    .attr('class', 'grid-line');
+                
+                // Lines parallel to AB
+                const p5 = interpolateVertex(vertices.A, vertices.B, 0, t);
+                const p6 = interpolateVertex(vertices.A, vertices.B, 1, t);
+                g.append('line')
+                    .attr('x1', p5.x).attr('y1', p5.y)
+                    .attr('x2', p6.x).attr('y2', p6.y)
+                    .attr('class', 'grid-line');
+            }
+            
+            // Draw triangle border
+            g.append('polygon')
+                .attr('points', `${vertices.A.x},${vertices.A.y} ${vertices.B.x},${vertices.B.y} ${vertices.C.x},${vertices.C.y}`)
+                .attr('fill', 'none')
+                .attr('stroke', '#333')
+                .attr('stroke-width', 3);
+            
+            // Add labels with better positioning and visibility
+            // Top label - AI Usage
+            g.append('text')
+                .attr('x', vertices.A.x)
+                .attr('y', vertices.A.y - 40)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axis-label')
+                .style('font-size', '16px')
+                .style('font-weight', 'bold')
+                .text(config.labels.A);
+            
+            // Bottom left label - Global Human Equality (multi-line, closer to middle)
+            g.append('text')
+                .attr('x', vertices.B.x - 50)
+                .attr('y', vertices.B.y + 45)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axis-label')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .text('Global Human');
+            
+            g.append('text')
+                .attr('x', vertices.B.x - 50)
+                .attr('y', vertices.B.y + 60)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axis-label')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .text('Equality');
+            
+            // Bottom right label - Overcoming Climate Change (multi-line, closer to middle)
+            g.append('text')
+                .attr('x', vertices.C.x + 50)
+                .attr('y', vertices.C.y + 45)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axis-label')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .text('Overcoming');
+            
+            g.append('text')
+                .attr('x', vertices.C.x + 50)
+                .attr('y', vertices.C.y + 60)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axis-label')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .text('Climate Change');
+            
+            // Click handler
+            svg.on('click', function(event) {
+                // Check if user has already responded
+                const hasResponded = year === '2025' ? hasResponded2025 : hasResponded2075;
+                
+                if (hasResponded) {
+                    alert(`You have already submitted your response for ${year}. Each user can only respond once per chart.`);
+                    return;
+                }
+                
+                const [mx, my] = d3.pointer(event);
+                const barycentric = cartesianToBarycentric(mx, my, vertices);
+                
+                if (isInsideTriangle(barycentric)) {
+                    addDataPoint(year, barycentric, vertices);
+                    
+                    // Mark as responded
+                    if (year === '2025') {
+                        hasResponded2025 = true;
+                    } else {
+                        hasResponded2075 = true;
+                    }
+                    
+                    // Visual feedback that chart is locked
+                    svg.style('cursor', 'not-allowed');
+                    svg.style('opacity', '0.7');
+                }
+            });
+            
+            // Store vertices for later use
+            svg.datum({ vertices, year });
+            
+            return { svg, vertices };
+        }
 
-  <script>
-    // === Helper functions ===
-    function uuid() { return 'anon-' + Math.random().toString(36).slice(2, 10); }
-    function nowISO() { return new Date().toISOString(); }
-    function normalize(a,b,c){ const s=a+b+c; return [a/s,b/s,c/s]; }
-    function pct(x){ return Math.round(x*1000)/10; }
+        function interpolateVertex(v1, v2, side, t) {
+            if (side === 0) {
+                return {
+                    x: v1.x + t * (v2.x - v1.x),
+                    y: v1.y + t * (v2.y - v1.y)
+                };
+            } else {
+                const opposite = side === 1 ? 
+                    { x: (v1.x + v2.x) / 2, y: Math.min(v1.y, v2.y) - Math.abs(v2.x - v1.x) * Math.sqrt(3) / 2 } :
+                    v1;
+                return {
+                    x: v1.x + t * (opposite.x - v1.x),
+                    y: v1.y + t * (opposite.y - v1.y)
+                };
+            }
+        }
 
-    // Persistent anonymous user_id
-    let USER_ID = localStorage.getItem('values_user_id');
-    if(!USER_ID){ USER_ID = uuid(); localStorage.setItem('values_user_id', USER_ID); }
+        function cartesianToBarycentric(x, y, vertices) {
+            const { A, B, C } = vertices;
+            const v0x = C.x - A.x, v0y = C.y - A.y;
+            const v1x = B.x - A.x, v1y = B.y - A.y;
+            const v2x = x - A.x, v2y = y - A.y;
+            
+            const dot00 = v0x * v0x + v0y * v0y;
+            const dot01 = v0x * v1x + v0y * v1y;
+            const dot02 = v0x * v2x + v0y * v2y;
+            const dot11 = v1x * v1x + v1y * v1y;
+            const dot12 = v1x * v2x + v1y * v2y;
+            
+            const invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+            const c = (dot11 * dot02 - dot01 * dot12) * invDenom;
+            const b = (dot00 * dot12 - dot01 * dot02) * invDenom;
+            const a = 1 - b - c;
+            
+            return { a, b, c };
+        }
 
-    const values = {
-      A:'Maximising AI Usage',
-      B:'Global Human Equality',
-      C:'Overcoming Climate Change'
-    };
+        function barycentricToCartesian(bary, vertices) {
+            const { a, b, c } = bary;
+            const { A, B, C } = vertices;
+            return {
+                x: a * A.x + b * B.x + c * C.x,
+                y: a * A.y + b * B.y + c * C.y
+            };
+        }
 
-    // === Plot Layout ===
-    const layout = (title) => ({
-      title: { text: title, y: 0.98, pad: { b: 40 } },
-      ternary: {
-        domain: { x: [0.08, 0.92], y: [0.10, 0.92] },
-        sum: 1,
-        aaxis: { title: { text: values.A }, min: 0 },
-        baxis: { title: { text: values.B }, min: 0 },
-        caxis: { title: { text: values.C }, min: 0 }
-      },
-      margin: { l: 80, r: 80, b: 100, t: 120 }
-    });
+        function isInsideTriangle(bary) {
+            return bary.a >= 0 && bary.b >= 0 && bary.c >= 0 && 
+                   Math.abs(bary.a + bary.b + bary.c - 1) < 0.01;
+        }
 
-    // === Plot render helper ===
-    function renderPlot(divId,title){
-      Plotly.newPlot(divId,[{
-        type:'scatterternary',
-        a:[], b:[], c:[],
-        mode:'markers',
-        marker:{size:12, color:'#0f766e'}
-      }], layout(title), {displayModeBar:false});
-    }
+        function addDataPoint(year, barycentric, vertices) {
+            const dataArray = year === '2025' ? data2025 : data2075;
+            const svgId = year === '2025' ? 'plot2025' : 'plot2075';
+            
+            // Add only the user's own response (not displaying other responses)
+            const userResponse = {
+                a: barycentric.a,
+                b: barycentric.b,
+                c: barycentric.c,
+                timestamp: new Date().toISOString()
+            };
+            
+            dataArray.push(userResponse);
+            
+            // Display only the user's response
+            updateChart(svgId, [userResponse], vertices);
+            updateStats();
+            
+            // Show confirmation message
+            setTimeout(() => {
+                alert(`✓ Your response for ${year} has been recorded! The chart is now locked.`);
+            }, 100);
+        }
 
-    // Render both charts initially
-    renderPlot('plotPresent', 'Present (2025)');
-    renderPlot('plotFuture',  'Future (2075)');
+        function updateChart(svgId, dataArray, vertices) {
+            const svg = d3.select(`#${svgId}`);
+            
+            const points = svg.selectAll('.point').data(dataArray);
+            
+            points.enter()
+                .append('circle')
+                .attr('class', 'point')
+                .attr('r', 0)
+                .attr('fill', svgId === 'plot2025' ? '#667eea' : '#764ba2')
+                .attr('opacity', 0.6)
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+                .merge(points)
+                .attr('cx', d => {
+                    const pos = barycentricToCartesian(d, vertices);
+                    return pos.x;
+                })
+                .attr('cy', d => {
+                    const pos = barycentricToCartesian(d, vertices);
+                    return pos.y;
+                })
+                .transition()
+                .duration(300)
+                .attr('r', 6);
+            
+            points.exit().remove();
+        }
 
-    // === DOM references ===
-    const presentStatus=document.getElementById('presentStatus');
-    const futureStatus=document.getElementById('futureStatus');
-    const presentSubmit=document.getElementById('presentSubmit');
-    const futureSubmit=document.getElementById('futureSubmit');
-    const presentReset=document.getElementById('presentReset');
-    const futureReset=document.getElementById('futureReset');
+        function updateStats() {
+            document.getElementById('count2025').textContent = data2025.length;
+            document.getElementById('count2075').textContent = data2075.length;
+        }
 
-    let presentPoint=null, futurePoint=null;
+        function clearData(year) {
+            if (confirm(`Are you sure you want to clear all ${year} data?`)) {
+                if (year === '2025') {
+                    data2025 = [];
+                    const svg = d3.select('#plot2025');
+                    const vertices = svg.datum().vertices;
+                    updateChart('plot2025', data2025, vertices);
+                } else {
+                    data2075 = [];
+                    const svg = d3.select('#plot2075');
+                    const vertices = svg.datum().vertices;
+                    updateChart('plot2075', data2075, vertices);
+                }
+                updateStats();
+            }
+        }
 
-    // === Make the dots movable by clicking ===
-    document.getElementById('plotPresent').on('plotly_click', (e)=>{
-      const p=e.points?.[0];
-      if(!p) return;
-      let [a,b,c]=normalize(p.a,p.b,p.c);
-      presentPoint={a,b,c};
-      Plotly.react('plotPresent',[{
-        type:'scatterternary',
-        a:[a], b:[b], c:[c],
-        mode:'markers',
-        marker:{size:14, color:'#0f766e'}
-      }], layout('Present (2025)'));
-      presentStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
-      presentSubmit.disabled=false;
-      presentReset.disabled=false;
-    });
+        function exportData() {
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                data2025: data2025,
+                data2075: data2075
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `priority_survey_${Date.now()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
 
-    document.getElementById('plotFuture').on('plotly_click', (e)=>{
-      const p=e.points?.[0];
-      if(!p) return;
-      let [a,b,c]=normalize(p.a,p.b,p.c);
-      futurePoint={a,b,c};
-      Plotly.react('plotFuture',[{
-        type:'scatterternary',
-        a:[a], b:[b], c:[c],
-        mode:'markers',
-        marker:{size:14, color:'#0f766e'}
-      }], layout('Future (2075)'));
-      futureStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
-      futureSubmit.disabled=false;
-      futureReset.disabled=false;
-    });
-
-    // === Supabase setup ===
-    const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
-
-    async function saveToSupabase(data, statusEl, buttonEl) {
-      console.log('Submitting to Supabase:', data);
-      statusEl.textContent = 'Submitting…';
-      statusEl.classList.remove('success','error');
-
-      try {
-        const resp = await fetch(`${SUPABASE_URL}/rest/v1/responses`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(data)
+        // Initialize charts on load
+        window.addEventListener('load', () => {
+            initChart('plot2025', '2025');
+            initChart('plot2075', '2075');
+            updateStats();
         });
 
-        const text = await resp.text();
-        console.log('Supabase status:', resp.status, 'body:', text);
-
-        if (resp.ok) {
-          statusEl.textContent = '✅ Response saved to Supabase!';
-          statusEl.classList.add('success');
-          buttonEl.disabled = true;
-        } else {
-          statusEl.textContent = '⚠️ Error saving: ' + text;
-          statusEl.classList.add('error');
-        }
-      } catch (e) {
-        console.error('Network/JS error:', e);
-        statusEl.textContent = '⚠️ Network/JS error: ' + e.message;
-        statusEl.classList.add('error');
-      }
-    }
-
-    // === Submit handlers ===
-    presentSubmit.addEventListener('click', async () => {
-      if (!presentPoint) {
-        presentStatus.textContent = 'Please click inside the triangle first.';
-        return;
-      }
-      const data = {
-        user_id: USER_ID,
-        a: presentPoint.a,
-        b: presentPoint.b,
-        c: presentPoint.c,
-        survey_year: 2025,
-        timestamp: nowISO()
-      };
-      await saveToSupabase(data, presentStatus, presentSubmit);
-    });
-
-    futureSubmit.addEventListener('click', async () => {
-      if (!futurePoint) {
-        futureStatus.textContent = 'Please click inside the triangle first.';
-        return;
-      }
-      const data = {
-        user_id: USER_ID,
-        a: futurePoint.a,
-        b: futurePoint.b,
-        c: futurePoint.c,
-        survey_year: 2075,
-        timestamp: nowISO()
-      };
-      await saveToSupabase(data, futureStatus, futureSubmit);
-    });
-
-    // === Reset buttons ===
-    presentReset.onclick = () => {
-      renderPlot('plotPresent','Present (2025)');
-      presentStatus.textContent = 'Click inside the triangle to select a new point.';
-      presentSubmit.disabled = true;
-      presentPoint = null;
-    };
-    futureReset.onclick = () => {
-      renderPlot('plotFuture','Future (2075)');
-      futureStatus.textContent = 'Click inside the triangle to select a new point.';
-      futureSubmit.disabled = true;
-      futurePoint = null;
-    };
-  </script>
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const svg2025 = d3.select('#plot2025');
+            const svg2075 = d3.select('#plot2075');
+            const vertices2025 = initChart('plot2025', '2025').vertices;
+            const vertices2075 = initChart('plot2075', '2075').vertices;
+            updateChart('plot2025', data2025, vertices2025);
+            updateChart('plot2075', data2075, vertices2075);
+        });
+    </script>
 </body>
 </html>
