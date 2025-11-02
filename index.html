@@ -30,7 +30,7 @@
 </head>
 <body>
   <h1>Values Survey: Present vs 2075</h1>
-  <p>Click inside each triangle to record the <strong>relative importance</strong> of:</p>
+  <p>Click inside each triangle to move your dot — this represents how you balance:</p>
   <ul>
     <li>Maximising AI Usage</li>
     <li>Global Human Equality</li>
@@ -38,21 +38,23 @@
   </ul>
 
   <div class="wrap">
+    <!-- 2025 -->
     <section class="card">
       <h2>Present Day (2025)</h2>
       <div id="plotPresent" class="plot"></div>
       <div class="controls">
-        <span id="presentStatus" class="muted">Click inside the triangle to select your point.</span>
+        <span id="presentStatus" class="muted">Click inside the triangle to select a point.</span>
         <button id="presentSubmit" class="ok" disabled>Submit 2025</button>
         <button id="presentReset" class="warn" disabled>Reset</button>
       </div>
     </section>
 
+    <!-- 2075 -->
     <section class="card">
       <h2>Future (2075)</h2>
       <div id="plotFuture" class="plot"></div>
       <div class="controls">
-        <span id="futureStatus" class="muted">Click inside the triangle to select your point.</span>
+        <span id="futureStatus" class="muted">Click inside the triangle to select a point.</span>
         <button id="futureSubmit" class="ok" disabled>Submit 2075</button>
         <button id="futureReset" class="warn" disabled>Reset</button>
       </div>
@@ -74,8 +76,13 @@
     let USER_ID = localStorage.getItem('values_user_id');
     if(!USER_ID){ USER_ID = uuid(); localStorage.setItem('values_user_id', USER_ID); }
 
-    const values = {A:'Maximising AI Usage', B:'Global Human Equality', C:'Overcoming Climate Change'};
+    const values = {
+      A:'Maximising AI Usage',
+      B:'Global Human Equality',
+      C:'Overcoming Climate Change'
+    };
 
+    // === Plot Layout ===
     const layout = (title) => ({
       title: { text: title, y: 0.98, pad: { b: 40 } },
       ternary: {
@@ -88,14 +95,21 @@
       margin: { l: 80, r: 80, b: 100, t: 120 }
     });
 
+    // === Plot render helper ===
     function renderPlot(divId,title){
-      Plotly.newPlot(divId,[{type:'scatterternary',a:[],b:[],c:[],mode:'markers',marker:{size:10}}],
-        layout(title),{displayModeBar:false});
+      Plotly.newPlot(divId,[{
+        type:'scatterternary',
+        a:[], b:[], c:[],
+        mode:'markers',
+        marker:{size:12, color:'#0f766e'}
+      }], layout(title), {displayModeBar:false});
     }
 
+    // Render both charts initially
     renderPlot('plotPresent', 'Present (2025)');
     renderPlot('plotFuture',  'Future (2075)');
 
+    // === DOM references ===
     const presentStatus=document.getElementById('presentStatus');
     const futureStatus=document.getElementById('futureStatus');
     const presentSubmit=document.getElementById('presentSubmit');
@@ -105,30 +119,44 @@
 
     let presentPoint=null, futurePoint=null;
 
-    // === Capture clicks ===
+    // === Make the dots movable by clicking ===
     document.getElementById('plotPresent').on('plotly_click', (e)=>{
-      const p=e.points?.[0]; if(!p) return;
+      const p=e.points?.[0];
+      if(!p) return;
       let [a,b,c]=normalize(p.a,p.b,p.c);
       presentPoint={a,b,c};
-      Plotly.react('plotPresent',[{type:'scatterternary',a:[a],b:[b],c:[c],mode:'markers',marker:{size:10}}],layout('Present (2025)'));
-      presentStatus.innerHTML=`${pct(a)}% ${values.A} · ${pct(b)}% ${values.B} · ${pct(c)}% ${values.C}`;
-      presentSubmit.disabled=false; presentReset.disabled=false;
+      Plotly.react('plotPresent',[{
+        type:'scatterternary',
+        a:[a], b:[b], c:[c],
+        mode:'markers',
+        marker:{size:14, color:'#0f766e'}
+      }], layout('Present (2025)'));
+      presentStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
+      presentSubmit.disabled=false;
+      presentReset.disabled=false;
     });
 
     document.getElementById('plotFuture').on('plotly_click', (e)=>{
-      const p=e.points?.[0]; if(!p) return;
+      const p=e.points?.[0];
+      if(!p) return;
       let [a,b,c]=normalize(p.a,p.b,p.c);
       futurePoint={a,b,c};
-      Plotly.react('plotFuture',[{type:'scatterternary',a:[a],b:[b],c:[c],mode:'markers',marker:{size:10}}],layout('Future (2075)'));
-      futureStatus.innerHTML=`${pct(a)}% ${values.A} · ${pct(b)}% ${values.B} · ${pct(c)}% ${values.C}`;
-      futureSubmit.disabled=false; futureReset.disabled=false;
+      Plotly.react('plotFuture',[{
+        type:'scatterternary',
+        a:[a], b:[b], c:[c],
+        mode:'markers',
+        marker:{size:14, color:'#0f766e'}
+      }], layout('Future (2075)'));
+      futureStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
+      futureSubmit.disabled=false;
+      futureReset.disabled=false;
     });
 
     // === Supabase setup ===
     const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
 
-    async function saveToSupabase(data, statusEl, buttonEl, storageKey) {
+    async function saveToSupabase(data, statusEl, buttonEl) {
       console.log('Submitting to Supabase:', data);
       statusEl.textContent = 'Submitting…';
       statusEl.classList.remove('success','error');
@@ -152,7 +180,6 @@
           statusEl.textContent = '✅ Response saved to Supabase!';
           statusEl.classList.add('success');
           buttonEl.disabled = true;
-          localStorage.setItem(storageKey, 'yes');
         } else {
           statusEl.textContent = '⚠️ Error saving: ' + text;
           statusEl.classList.add('error');
@@ -166,41 +193,47 @@
 
     // === Submit handlers ===
     presentSubmit.addEventListener('click', async () => {
-      if (!presentPoint) { presentStatus.textContent = 'Click inside the triangle first.'; return; }
+      if (!presentPoint) {
+        presentStatus.textContent = 'Please click inside the triangle first.';
+        return;
+      }
       const data = {
         user_id: USER_ID,
         a: presentPoint.a,
         b: presentPoint.b,
         c: presentPoint.c,
-        survey_year: 2025,   // ✅ renamed for clarity
+        survey_year: 2025,
         timestamp: nowISO()
       };
-      await saveToSupabase(data, presentStatus, presentSubmit, 'values_submitted_2025');
+      await saveToSupabase(data, presentStatus, presentSubmit);
     });
 
     futureSubmit.addEventListener('click', async () => {
-      if (!futurePoint) { futureStatus.textContent = 'Click inside the triangle first.'; return; }
+      if (!futurePoint) {
+        futureStatus.textContent = 'Please click inside the triangle first.';
+        return;
+      }
       const data = {
         user_id: USER_ID,
         a: futurePoint.a,
         b: futurePoint.b,
         c: futurePoint.c,
-        survey_year: 2075,   // ✅ renamed for clarity
+        survey_year: 2075,
         timestamp: nowISO()
       };
-      await saveToSupabase(data, futureStatus, futureSubmit, 'values_submitted_2075');
+      await saveToSupabase(data, futureStatus, futureSubmit);
     });
 
     // === Reset buttons ===
     presentReset.onclick = () => {
       renderPlot('plotPresent','Present (2025)');
-      presentStatus.textContent = 'Click once inside the triangle to select your point.';
+      presentStatus.textContent = 'Click inside the triangle to select a new point.';
       presentSubmit.disabled = true;
       presentPoint = null;
     };
     futureReset.onclick = () => {
       renderPlot('plotFuture','Future (2075)');
-      futureStatus.textContent = 'Click once inside the triangle to select your point.';
+      futureStatus.textContent = 'Click inside the triangle to select a new point.';
       futureSubmit.disabled = true;
       futurePoint = null;
     };
