@@ -264,6 +264,10 @@
         // Track if user has responded
         let hasResponded2025 = false;
         let hasResponded2075 = false;
+        
+        // Generate unique user ID (nickname) for this session
+        let userNickname = generateNickname();
+        let responseCounter = 0; // Global counter for ID numbers
 
         // Chart configuration
         const config = {
@@ -276,6 +280,16 @@
                 C: 'Overcoming Climate Change'
             }
         };
+        
+        // Function to generate random nickname
+        function generateNickname() {
+            const adjectives = ['Swift', 'Bright', 'Bold', 'Wise', 'Cool', 'Quick', 'Smart', 'Clever', 'Sharp', 'Keen'];
+            const nouns = ['Panda', 'Eagle', 'Tiger', 'Dragon', 'Phoenix', 'Wolf', 'Fox', 'Bear', 'Hawk', 'Lion'];
+            const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+            const randomNum = Math.floor(Math.random() * 1000);
+            return `${randomAdj}${randomNoun}${randomNum}`;
+        }
 
         // Initialize both charts
         function initChart(svgId, year) {
@@ -479,11 +493,17 @@
             const dataArray = year === '2025' ? data2025 : data2075;
             const svgId = year === '2025' ? 'plot2025' : 'plot2075';
             
+            // Increment response counter
+            responseCounter++;
+            
             // Add only the user's own response (not displaying other responses)
             const userResponse = {
+                id: responseCounter,
+                user_id: userNickname,
                 a: barycentric.a,
                 b: barycentric.b,
                 c: barycentric.c,
+                year: year,
                 timestamp: new Date().toISOString()
             };
             
@@ -493,9 +513,9 @@
             updateChart(svgId, [userResponse], vertices);
             updateStats();
             
-            // Show confirmation message
+            // Show confirmation message with nickname
             setTimeout(() => {
-                alert(`✓ Your response for ${year} has been recorded! The chart is now locked.`);
+                alert(`✓ Your response for ${year} has been recorded!\nYour user ID: ${userNickname}\nThe chart is now locked.`);
             }, 100);
         }
 
@@ -552,23 +572,18 @@
 
         function exportData(format = 'json') {
             if (format === 'csv') {
-                // Create CSV content
-                let csvContent = 'Year,AI Usage (%),Global Human Equality (%),Overcoming Climate Change (%),Timestamp\n';
+                // Create CSV content with specific column order
+                let csvContent = 'id,user_id,AI Usage,Global Human Equality,Overcoming Climate Change,year,Timestamp\n';
                 
-                // Add 2025 data
-                data2025.forEach(point => {
-                    const aiPercent = (point.a * 100).toFixed(2);
-                    const equalityPercent = (point.b * 100).toFixed(2);
-                    const climatePercent = (point.c * 100).toFixed(2);
-                    csvContent += `2025,${aiPercent},${equalityPercent},${climatePercent},${point.timestamp}\n`;
-                });
+                // Combine both datasets and sort by ID
+                const allData = [...data2025, ...data2075].sort((a, b) => a.id - b.id);
                 
-                // Add 2075 data
-                data2075.forEach(point => {
-                    const aiPercent = (point.a * 100).toFixed(2);
-                    const equalityPercent = (point.b * 100).toFixed(2);
-                    const climatePercent = (point.c * 100).toFixed(2);
-                    csvContent += `2075,${aiPercent},${equalityPercent},${climatePercent},${point.timestamp}\n`;
+                // Add each response
+                allData.forEach(point => {
+                    const aiUsage = (point.a * 100).toFixed(2);
+                    const equality = (point.b * 100).toFixed(2);
+                    const climate = (point.c * 100).toFixed(2);
+                    csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${point.timestamp}\n`;
                 });
                 
                 // Download CSV
