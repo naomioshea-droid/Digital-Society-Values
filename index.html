@@ -124,110 +124,96 @@
       futureSubmit.disabled=false; futureReset.disabled=false;
     });
 
- <script>
-  // === Supabase setup ===
-  const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
+    // === Supabase setup ===
+    const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
 
-  // 0) show any JS error clearly on the page
-  window.addEventListener('error', (e) => {
-    console.error('Runtime error:', e.error || e.message);
-    const el = document.querySelector('.footer');
-    const p = document.createElement('p');
-    p.className = 'error';
-    p.textContent = '⚠️ JavaScript error: ' + (e.error?.message || e.message);
-    el.appendChild(p);
-  });
+    // Log any errors clearly
+    window.addEventListener('error', (e) => {
+      console.error('Runtime error:', e.error || e.message);
+      const el = document.querySelector('.footer');
+      const p = document.createElement('p');
+      p.className = 'error';
+      p.textContent = '⚠️ JavaScript error: ' + (e.error?.message || e.message);
+      el.appendChild(p);
+    });
 
-  async function saveToSupabase(data, statusEl, buttonEl, storageKey) {
-    console.log('Submitting to Supabase:', data);
-    statusEl.textContent = 'Submitting…';
-    statusEl.classList.remove('success','error');
+    async function saveToSupabase(data, statusEl, buttonEl, storageKey) {
+      console.log('Submitting to Supabase:', data);
+      statusEl.textContent = 'Submitting…';
+      statusEl.classList.remove('success','error');
 
-    try {
-      const resp = await fetch(`${SUPABASE_URL}/rest/v1/responses`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(data)
-      });
+      try {
+        const resp = await fetch(`${SUPABASE_URL}/rest/v1/responses`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(data)
+        });
 
-      const text = await resp.text(); // read body once
-      console.log('Supabase status:', resp.status, 'body:', text);
+        const text = await resp.text();
+        console.log('Supabase status:', resp.status, 'body:', text);
 
-      if (resp.ok) {
-        statusEl.textContent = '✅ Response saved to Supabase!';
-        statusEl.classList.add('success');
-        buttonEl.disabled = true;
-        localStorage.setItem(storageKey, 'yes');
-      } else {
-        statusEl.textContent = '⚠️ Error saving: ' + text;
+        if (resp.ok) {
+          statusEl.textContent = '✅ Response saved to Supabase!';
+          statusEl.classList.add('success');
+          buttonEl.disabled = true;
+          localStorage.setItem(storageKey, 'yes');
+        } else {
+          statusEl.textContent = '⚠️ Error saving: ' + text;
+          statusEl.classList.add('error');
+        }
+      } catch (e) {
+        console.error('Network/JS error:', e);
+        statusEl.textContent = '⚠️ Network/JS error: ' + e.message;
         statusEl.classList.add('error');
       }
-    } catch (e) {
-      console.error('Network/JS error:', e);
-      statusEl.textContent = '⚠️ Network/JS error: ' + e.message;
-      statusEl.classList.add('error');
     }
-  }
 
-  // === Submit handlers (single listener each) ===
-  presentSubmit.addEventListener('click', async () => {
-    if (!presentPoint) { presentStatus.textContent = 'Click inside the triangle first.'; return; }
-    const data = {
-      user_id: USER_ID,
-      a: presentPoint.a,
-      b: presentPoint.b,
-      c: presentPoint.c,
-      year: 2025,
-      timestamp: nowISO()
-    };
-    await saveToSupabase(data, presentStatus, presentSubmit, 'values_submitted_2025');
-  });
+    // === Submit handlers ===
+    presentSubmit.addEventListener('click', async () => {
+      if (!presentPoint) { presentStatus.textContent = 'Click inside the triangle first.'; return; }
+      const data = {
+        user_id: USER_ID,
+        a: presentPoint.a,
+        b: presentPoint.b,
+        c: presentPoint.c,
+        year: 2025,
+        timestamp: nowISO()
+      };
+      await saveToSupabase(data, presentStatus, presentSubmit, 'values_submitted_2025');
+    });
 
-  futureSubmit.addEventListener('click', async () => {
-    if (!futurePoint) { futureStatus.textContent = 'Click inside the triangle first.'; return; }
-    const data = {
-      user_id: USER_ID,
-      a: futurePoint.a,
-      b: futurePoint.b,
-      c: futurePoint.c,
-      year: 2075,
-      timestamp: nowISO()
-    };
-    await saveToSupabase(data, futureStatus, futureSubmit, 'values_submitted_2075');
-  });
-
-  // === Duplicate prevention (optional) ===
-  if (localStorage.getItem('values_submitted_2025') === 'yes') {
-    presentSubmit.disabled = true; presentSubmit.textContent = 'Submitted';
-  }
-  if (localStorage.getItem('values_submitted_2075') === 'yes') {
-    futureSubmit.disabled = true; futureSubmit.textContent = 'Submitted';
-  }
-
-  // === Reset buttons ===
-  presentReset.onclick = () => {
-    renderPlot('plotPresent','Present (2025)');
-    presentStatus.textContent = 'Click once inside the triangle to select your point.';
-    presentSubmit.disabled = true;
-    presentPoint = null;
-  };
-  futureReset.onclick = () => {
-    renderPlot('plotFuture','Future (2075)');
-    futureStatus.textContent = 'Click once inside the triangle to select your point.';
-    futureSubmit.disabled = true;
-    futurePoint = null;
-  };
-</script>
+    futureSubmit.addEventListener('click', async () => {
+      if (!futurePoint) { futureStatus.textContent = 'Click inside the triangle first.'; return; }
+      const data = {
+        user_id: USER_ID,
+        a: futurePoint.a,
+        b: futurePoint.b,
+        c: futurePoint.c,
+        year: 2075,
+        timestamp: nowISO()
+      };
+      await saveToSupabase(data, futureStatus, futureSubmit, 'values_submitted_2075');
+    });
 
     // === Reset buttons ===
-    presentReset.onclick=()=>{ renderPlot('plotPresent','Present (2025)'); presentStatus.textContent='Click once inside the triangle to select your point.'; presentSubmit.disabled=true; };
-    futureReset.onclick=()=>{ renderPlot('plotFuture','Future (2075)'); futureStatus.textContent='Click once inside the triangle to select your point.'; futureSubmit.disabled=true; };
+    presentReset.onclick = () => {
+      renderPlot('plotPresent','Present (2025)');
+      presentStatus.textContent = 'Click once inside the triangle to select your point.';
+      presentSubmit.disabled = true;
+      presentPoint = null;
+    };
+    futureReset.onclick = () => {
+      renderPlot('plotFuture','Future (2075)');
+      futureStatus.textContent = 'Click once inside the triangle to select your point.';
+      futureSubmit.disabled = true;
+      futurePoint = null;
+    };
   </script>
 </body>
 </html>
