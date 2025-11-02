@@ -115,13 +115,20 @@
 
     const values = {A:'Maximising AI Usage', B:'Overcoming Climate Change', C:'Global Human Equality'};
     const layout = (title) => ({
-      title, ternary: {
-        sum:1,
-        aaxis:{title:values.A, min:0},
-        baxis:{title:values.B, min:0},
-        caxis:{title:values.C, min:0}
-      }, margin:{l:20,r:20,t:40,b:20}
-    });
+  title: {
+    text: title,
+    y: 0.95,   // moves the title slightly higher above the triangle
+    pad: { b: 40 }  // adds padding *below* the title
+  },
+  ternary: {
+    sum: 1,
+    aaxis: { title: values.A, min: 0 },
+    baxis: { title: values.B, min: 0 },
+    caxis: { title: values.C, min: 0 }
+  },
+  margin: { l: 20, r: 20, t: 120, b: 20 } // increase t for more space
+});
+
 
     function renderPlot(divId,title){
       Plotly.newPlot(divId,[{type:'scatterternary',a:[],b:[],c:[],mode:'markers',marker:{size:10}}],
