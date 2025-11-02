@@ -65,15 +65,7 @@
         <button id="presentSubmit" class="ok" disabled>Submit 2025</button>
         <button id="presentReset" class="warn" disabled>Reset</button>
       </div>
-      <form id="presentForm" method="POST" action="https://formspree.io/f/mkgpzkan" style="display:none">
-        <input type="hidden" name="user_id" id="present_user_id">
-        <input type="hidden" name="a" id="present_a">
-        <input type="hidden" name="b" id="present_b">
-        <input type="hidden" name="c" id="present_c">
-        <input type="hidden" name="year" value="2025">
-        <input type="hidden" name="timestamp" id="present_timestamp">
-        <input type="text" name="_gotcha" style="display:none">
-      </form>
+     
     </section>
 
     <!-- 2075 Plot -->
@@ -85,15 +77,7 @@
         <button id="futureSubmit" class="ok" disabled>Submit 2075</button>
         <button id="futureReset" class="warn" disabled>Reset</button>
       </div>
-      <form id="futureForm" method="POST" action="https://formspree.io/f/mvgvqdng" style="display:none">
-        <input type="hidden" name="user_id" id="future_user_id">
-        <input type="hidden" name="a" id="future_a">
-        <input type="hidden" name="b" id="future_b">
-        <input type="hidden" name="c" id="future_c">
-        <input type="hidden" name="year" value="2075">
-        <input type="hidden" name="timestamp" id="future_timestamp">
-        <input type="text" name="_gotcha" style="display:none">
-      </form>
+  
     </section>
   </div>
 
@@ -214,9 +198,6 @@ presentSubmit.addEventListener('click', async () => {
 });
 
 
-    presentSubmit.onclick=()=>sendForm('presentForm',presentStatus);
-    futureSubmit.onclick=()=>sendForm('futureForm',futureStatus);
-
 // Guards: don’t let users submit until they have clicked a point
 function ensureChosen(pointObj, statusEl){
   if(!pointObj){
@@ -226,67 +207,87 @@ function ensureChosen(pointObj, statusEl){
   }
   return true;
 }
-
-// Actually POST to Formspree using FormData
-async function postForm(formEl, statusEl, okButton){
-  const formData = new FormData(formEl);
+    
+// === SAVE TO SUPABASE FUNCTION ===
+async function saveToSupabase(data, statusEl, buttonEl, storageKey) {
   try {
-    const resp = await fetch(formEl.action, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/responses`, {
       method: 'POST',
-      body: formData,
-      headers: { 'Accept': 'application/json' } // let Formspree return JSON
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
     });
+
     if (resp.ok) {
-      statusEl.textContent = '✅ Thanks! Your response was recorded.';
-      statusEl.classList.remove('error');
+      statusEl.textContent = '✅ Response saved to Supabase!';
       statusEl.classList.add('success');
-      okButton.disabled = true;           // stop re-submits
-      okButton.textContent = 'Submitted'; // visual confirmation
-      return true;
+      buttonEl.disabled = true;
+      localStorage.setItem(storageKey, 'yes');
     } else {
-      statusEl.textContent = '⚠️ Submission failed — please try again.';
-      statusEl.classList.remove('success');
+      const err = await resp.text();
+      console.error('Supabase error:', err);
+      statusEl.textContent = '⚠️ Error saving response — check console.';
       statusEl.classList.add('error');
-      return false;
     }
   } catch (e) {
     console.error(e);
-    statusEl.textContent = '⚠️ Network error — try again in a moment.';
-    statusEl.classList.remove('success');
+    statusEl.textContent = '⚠️ Network error — please try again.';
     statusEl.classList.add('error');
-    return false;
   }
 }
 
-// Wire up buttons
+// === 2025 SUBMIT ===
 presentSubmit.addEventListener('click', async () => {
-  if(!ensureChosen(presentPoint, presentStatus)) return;
-  // refresh hidden inputs right before submit
-  setHidden('present', presentPoint.a, presentPoint.b, presentPoint.c, 2025);
-  document.getElementById('present_user_id').value = USER_ID;
-  document.getElementById('present_timestamp').value = new Date().toISOString();
-  await postForm(document.getElementById('presentForm'), presentStatus, presentSubmit);
+  if (!presentPoint) {
+    presentStatus.textContent = 'Click inside the triangle first.';
+    return;
+  }
+
+  const data = {
+    user_id: USER_ID,
+    a: presentPoint.a,
+    b: presentPoint.b,
+    c: presentPoint.c,
+    year: 2025,
+    timestamp: new Date().toISOString()
+  };
+
+  await saveToSupabase(data, presentStatus, presentSubmit, 'values_submitted_2025');
 });
 
+// === 2075 SUBMIT ===
 futureSubmit.addEventListener('click', async () => {
-  if(!ensureChosen(futurePoint, futureStatus)) return;
-  setHidden('future', futurePoint.a, futurePoint.b, futurePoint.c, 2075);
-  document.getElementById('future_user_id').value = USER_ID;
-  document.getElementById('future_timestamp').value = new Date().toISOString();
-  await postForm(document.getElementById('futureForm'), futureStatus, futureSubmit);
+  if (!futurePoint) {
+    futureStatus.textContent = 'Click inside the triangle first.';
+    return;
+  }
+
+  const data = {
+    user_id: USER_ID,
+    a: futurePoint.a,
+    b: futurePoint.b,
+    c: futurePoint.c,
+    year: 2075,
+    timestamp: new Date().toISOString()
+  };
+
+  await saveToSupabase(data, futureStatus, futureSubmit, 'values_submitted_2075');
 });
 
-// Optional: light duplicate prevention per device
-const KEY_2025 = 'values_submitted_2025';
-const KEY_2075 = 'values_submitted_2075';
-if(localStorage.getItem(KEY_2025) === 'yes'){ presentSubmit.disabled = true; presentSubmit.textContent = 'Submitted'; }
-if(localStorage.getItem(KEY_2075) === 'yes'){ futureSubmit.disabled = true; futureSubmit.textContent = 'Submitted'; }
-
-// If you want to set the keys after a success, add inside postForm’s `if (resp.ok)` block:
-//   if (okButton === presentSubmit) localStorage.setItem(KEY_2025,'yes');
-//   if (okButton === futureSubmit)  localStorage.setItem(KEY_2075,'yes');
-
-    
+// === DUPLICATE PREVENTION ===
+if (localStorage.getItem('values_submitted_2025') === 'yes') {
+  presentSubmit.disabled = true;
+  presentSubmit.textContent = 'Submitted';
+}
+if (localStorage.getItem('values_submitted_2075') === 'yes') {
+  futureSubmit.disabled = true;
+  futureSubmit.textContent = 'Submitted';
+}
+  
     // === Reset buttons ===
     presentReset.onclick=()=>{ renderPlot('plotPresent','Present (2025)'); presentStatus.innerHTML='Click once inside the triangle to select your point.'; presentSubmit.disabled=true; };
     futureReset.onclick=()=>{ renderPlot('plotFuture','Future (2075)'); futureStatus.innerHTML='Click once inside the triangle to select your point.'; futureSubmit.disabled=true; };
