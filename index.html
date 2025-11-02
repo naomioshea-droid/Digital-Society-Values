@@ -95,19 +95,48 @@
       margin: { l: 80, r: 80, b: 100, t: 120 }
     });
 
-    // === Plot render helper ===
-    function renderPlot(divId,title){
-      Plotly.newPlot(divId,[{
-        type:'scatterternary',
-        a:[], b:[], c:[],
-        mode:'markers',
-        marker:{size:12, color:'#0f766e'}
-      }], layout(title), {displayModeBar:false});
+   function makeGrid(step=0.02){
+  const A=[],B=[],C=[];
+  for(let a=0; a<=1; a+=step){
+    for(let b=0; b<=1-a; b+=step){
+      const c = 1 - a - b;
+      if (c >= -1e-9) { // keep triangle interior
+        A.push(+a.toFixed(4));
+        B.push(+b.toFixed(4));
+        C.push(+c.toFixed(4));
+      }
     }
+  }
+  return {A,B,C};
+}
 
-    // Render both charts initially
-    renderPlot('plotPresent', 'Present (2025)');
-    renderPlot('plotFuture',  'Future (2075)');
+const grid = makeGrid(0.02); // ~2% resolution click targets
+
+function renderPlot(divId, title){
+  const captureTrace = {
+    type: 'scatterternary',
+    a: grid.A, b: grid.B, c: grid.C,
+    mode: 'markers',
+    marker: { size: 24, opacity: 0 },   // big invisible targets
+    hoverinfo: 'skip',
+    showlegend: false
+  };
+  const selectedTrace = {
+    type: 'scatterternary',
+    a: [], b: [], c: [],
+    mode: 'markers',
+    marker: { size: 14 }, // visible dot
+    name: 'Your choice',
+    showlegend: false
+  };
+  Plotly.newPlot(
+    divId,
+    [captureTrace, selectedTrace],
+    layout(title),
+    { displayModeBar: false, scrollZoom: false } // prevent zoom confusion
+  );
+}
+
 
     // === DOM references ===
     const presentStatus=document.getElementById('presentStatus');
@@ -119,38 +148,22 @@
 
     let presentPoint=null, futurePoint=null;
 
-    // === Make the dots movable by clicking ===
-    document.getElementById('plotPresent').on('plotly_click', (e)=>{
-      const p=e.points?.[0];
-      if(!p) return;
-      let [a,b,c]=normalize(p.a,p.b,p.c);
-      presentPoint={a,b,c};
-      Plotly.react('plotPresent',[{
-        type:'scatterternary',
-        a:[a], b:[b], c:[c],
-        mode:'markers',
-        marker:{size:14, color:'#0f766e'}
-      }], layout('Present (2025)'));
-      presentStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
-      presentSubmit.disabled=false;
-      presentReset.disabled=false;
-    });
+   document.getElementById('plotPresent').on('plotly_click', (e)=>{
+  const p = e.points?.[0]; if(!p) return;
+  // p.a, p.b, p.c already sum to 1 because they come from the grid
+  presentPoint = { a: p.a, b: p.b, c: p.c };
+  Plotly.restyle('plotPresent', { a: [[p.a]], b: [[p.b]], c: [[p.c]] }, [1]); // update selectedTrace
+  presentStatus.innerHTML = `You selected: ${pct(p.a)}% ${values.A}, ${pct(p.b)}% ${values.B}, ${pct(p.c)}% ${values.C}`;
+  presentSubmit.disabled = false; presentReset.disabled = false;
+});
 
-    document.getElementById('plotFuture').on('plotly_click', (e)=>{
-      const p=e.points?.[0];
-      if(!p) return;
-      let [a,b,c]=normalize(p.a,p.b,p.c);
-      futurePoint={a,b,c};
-      Plotly.react('plotFuture',[{
-        type:'scatterternary',
-        a:[a], b:[b], c:[c],
-        mode:'markers',
-        marker:{size:14, color:'#0f766e'}
-      }], layout('Future (2075)'));
-      futureStatus.innerHTML=`You selected: ${pct(a)}% ${values.A}, ${pct(b)}% ${values.B}, ${pct(c)}% ${values.C}`;
-      futureSubmit.disabled=false;
-      futureReset.disabled=false;
-    });
+document.getElementById('plotFuture').on('plotly_click', (e)=>{
+  const p = e.points?.[0]; if(!p) return;
+  futurePoint = { a: p.a, b: p.b, c: p.c };
+  Plotly.restyle('plotFuture', { a: [[p.a]], b: [[p.b]], c: [[p.c]] }, [1]);
+  futureStatus.innerHTML = `You selected: ${pct(p.a)}% ${values.A}, ${pct(p.b)}% ${values.B}, ${pct(p.c)}% ${values.C}`;
+  futureSubmit.disabled = false; futureReset.disabled = false;
+});
 
     // === Supabase setup ===
     const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
