@@ -250,7 +250,8 @@
             <div class="controls">
                 <button onclick="clearData('2025')">Clear 2025 Data</button>
                 <button onclick="clearData('2075')">Clear 2075 Data</button>
-                <button onclick="exportData()">Export All Data</button>
+                <button onclick="exportData('json')">Export as JSON</button>
+                <button onclick="exportData('csv')">Export as CSV</button>
             </div>
         </div>
     </div>
@@ -549,21 +550,52 @@
             }
         }
 
-        function exportData() {
-            const exportData = {
-                timestamp: new Date().toISOString(),
-                data2025: data2025,
-                data2075: data2075
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `priority_survey_${Date.now()}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
+        function exportData(format = 'json') {
+            if (format === 'csv') {
+                // Create CSV content
+                let csvContent = 'Year,AI Usage (%),Global Human Equality (%),Overcoming Climate Change (%),Timestamp\n';
+                
+                // Add 2025 data
+                data2025.forEach(point => {
+                    const aiPercent = (point.a * 100).toFixed(2);
+                    const equalityPercent = (point.b * 100).toFixed(2);
+                    const climatePercent = (point.c * 100).toFixed(2);
+                    csvContent += `2025,${aiPercent},${equalityPercent},${climatePercent},${point.timestamp}\n`;
+                });
+                
+                // Add 2075 data
+                data2075.forEach(point => {
+                    const aiPercent = (point.a * 100).toFixed(2);
+                    const equalityPercent = (point.b * 100).toFixed(2);
+                    const climatePercent = (point.c * 100).toFixed(2);
+                    csvContent += `2075,${aiPercent},${equalityPercent},${climatePercent},${point.timestamp}\n`;
+                });
+                
+                // Download CSV
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `priority_survey_${Date.now()}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+            } else {
+                // Original JSON export
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    data2025: data2025,
+                    data2075: data2075
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `priority_survey_${Date.now()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            }
         }
 
         // Initialize charts on load
