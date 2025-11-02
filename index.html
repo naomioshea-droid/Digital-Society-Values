@@ -212,6 +212,76 @@ const layout = (title) => ({
     presentSubmit.onclick=()=>sendForm('presentForm',presentStatus);
     futureSubmit.onclick=()=>sendForm('futureForm',futureStatus);
 
+// Guards: don’t let users submit until they have clicked a point
+function ensureChosen(pointObj, statusEl){
+  if(!pointObj){
+    statusEl.textContent = 'Please click inside the triangle to choose a point first.';
+    statusEl.classList.remove('success','error');
+    return false;
+  }
+  return true;
+}
+
+// Actually POST to Formspree using FormData
+async function postForm(formEl, statusEl, okButton){
+  const formData = new FormData(formEl);
+  try {
+    const resp = await fetch(formEl.action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'Accept': 'application/json' } // let Formspree return JSON
+    });
+    if (resp.ok) {
+      statusEl.textContent = '✅ Thanks! Your response was recorded.';
+      statusEl.classList.remove('error');
+      statusEl.classList.add('success');
+      okButton.disabled = true;           // stop re-submits
+      okButton.textContent = 'Submitted'; // visual confirmation
+      return true;
+    } else {
+      statusEl.textContent = '⚠️ Submission failed — please try again.';
+      statusEl.classList.remove('success');
+      statusEl.classList.add('error');
+      return false;
+    }
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = '⚠️ Network error — try again in a moment.';
+    statusEl.classList.remove('success');
+    statusEl.classList.add('error');
+    return false;
+  }
+}
+
+// Wire up buttons
+presentSubmit.addEventListener('click', async () => {
+  if(!ensureChosen(presentPoint, presentStatus)) return;
+  // refresh hidden inputs right before submit
+  setHidden('present', presentPoint.a, presentPoint.b, presentPoint.c, 2025);
+  document.getElementById('present_user_id').value = USER_ID;
+  document.getElementById('present_timestamp').value = new Date().toISOString();
+  await postForm(document.getElementById('presentForm'), presentStatus, presentSubmit);
+});
+
+futureSubmit.addEventListener('click', async () => {
+  if(!ensureChosen(futurePoint, futureStatus)) return;
+  setHidden('future', futurePoint.a, futurePoint.b, futurePoint.c, 2075);
+  document.getElementById('future_user_id').value = USER_ID;
+  document.getElementById('future_timestamp').value = new Date().toISOString();
+  await postForm(document.getElementById('futureForm'), futureStatus, futureSubmit);
+});
+
+// Optional: light duplicate prevention per device
+const KEY_2025 = 'values_submitted_2025';
+const KEY_2075 = 'values_submitted_2075';
+if(localStorage.getItem(KEY_2025) === 'yes'){ presentSubmit.disabled = true; presentSubmit.textContent = 'Submitted'; }
+if(localStorage.getItem(KEY_2075) === 'yes'){ futureSubmit.disabled = true; futureSubmit.textContent = 'Submitted'; }
+
+// If you want to set the keys after a success, add inside postForm’s `if (resp.ok)` block:
+//   if (okButton === presentSubmit) localStorage.setItem(KEY_2025,'yes');
+//   if (okButton === futureSubmit)  localStorage.setItem(KEY_2075,'yes');
+
+    
     // === Reset buttons ===
     presentReset.onclick=()=>{ renderPlot('plotPresent','Present (2025)'); presentStatus.innerHTML='Click once inside the triangle to select your point.'; presentSubmit.disabled=true; };
     futureReset.onclick=()=>{ renderPlot('plotFuture','Future (2075)'); futureStatus.innerHTML='Click once inside the triangle to select your point.'; futureSubmit.disabled=true; };
