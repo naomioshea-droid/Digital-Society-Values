@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Priority Survey: Present vs Future</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -202,8 +203,17 @@
             text-align: center;
             margin-top: 20px;
         }
+
+        .loading-indicator {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
@@ -212,6 +222,10 @@
             <p class="subtitle">How do your priorities shift from present to future?</p>
         </header>
         
+        <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+            Loading existing responses...
+        </div>
+
         <div class="instructions">
             <h2>📊 How to Use</h2>
             <p><strong>⚠️ IMPORTANT: You can only click ONCE per chart!</strong> Think carefully before placing your point.</p>
@@ -256,9 +270,9 @@
     </div>
 
     <script>
-         const SUPABASE_URL = "https://moonehjcqazohpajuaho.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vb25laGpjcWF6b2hwYWp1YWhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMTE5NzYsImV4cCI6MjA3NzY4Nzk3Nn0.W4eVLfOALpHBg2N7Fisv4g0CEJflv4gx6BFQXzPHhY0";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const SUPABASE_URL = "https://moonehjcqazohpajuaho.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vb25laGpjcWF6b2hwYWp1YWhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMTE5NzYsImV4cCI6MjA3NzY4Nzk3Nn0.W4eVLfOALpHBg2N7Fisv4g0CEJflv4gx6BFQXzPHhY0";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // Data storage
         let data2025 = [];
@@ -270,7 +284,6 @@
         
         // Generate unique user ID (nickname) for this session
         let userNickname = generateNickname();
-        let responseCounter = 0; // Global counter for ID numbers
 
         // Chart configuration
         const config = {
@@ -292,6 +305,53 @@
             const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
             const randomNum = Math.floor(Math.random() * 1000);
             return `${randomAdj}${randomNoun}${randomNum}`;
+        }
+
+        // Load existing data from Supabase
+        async function loadExistingData() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('responses')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                
+                if (error) {
+                    console.error("❌ Error loading data:", error);
+                    document.getElementById('loadingIndicator').textContent = 'Error loading data. Using offline mode.';
+                    setTimeout(() => {
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                    }, 3000);
+                    return;
+                }
+                
+                console.log("✅ Loaded", data.length, "existing responses");
+                
+                // Separate by year
+                data2025 = data.filter(d => d.year === 2025);
+                data2075 = data.filter(d => d.year === 2075);
+                
+                // Update charts with all data
+                const svg2025 = d3.select('#plot2025');
+                const svg2075 = d3.select('#plot2075');
+                
+                if (svg2025.datum()?.vertices) {
+                    updateChart('plot2025', data2025, svg2025.datum().vertices);
+                }
+                if (svg2075.datum()?.vertices) {
+                    updateChart('plot2075', data2075, svg2075.datum().vertices);
+                }
+                
+                updateStats();
+                document.getElementById('loadingIndicator').style.display = 'none';
+            } catch (err) {
+                console.error("❌ Exception loading data:", err);
+                document.getElementById('loadingIndicator').textContent = 'Error connecting to database. Using offline mode.';
+                setTimeout(() => {
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                }, 3000);
+            }
         }
 
         // Initialize both charts
@@ -357,8 +417,7 @@
                 .attr('stroke', '#333')
                 .attr('stroke-width', 3);
             
-            // Add labels with better positioning and visibility
-            // Top label - AI Usage
+            // Add labels
             g.append('text')
                 .attr('x', vertices.A.x)
                 .attr('y', vertices.A.y - 40)
@@ -368,7 +427,6 @@
                 .style('font-weight', 'bold')
                 .text(config.labels.A);
             
-            // Bottom left label - Global Human Equality (multi-line, closer to middle)
             g.append('text')
                 .attr('x', vertices.B.x - 50)
                 .attr('y', vertices.B.y + 45)
@@ -387,7 +445,6 @@
                 .style('font-weight', 'bold')
                 .text('Equality');
             
-            // Bottom right label - Overcoming Climate Change (multi-line, closer to middle)
             g.append('text')
                 .attr('x', vertices.C.x + 50)
                 .attr('y', vertices.C.y + 45)
@@ -408,7 +465,6 @@
             
             // Click handler
             svg.on('click', function(event) {
-                // Check if user has already responded
                 const hasResponded = year === '2025' ? hasResponded2025 : hasResponded2075;
                 
                 if (hasResponded) {
@@ -422,20 +478,17 @@
                 if (isInsideTriangle(barycentric)) {
                     addDataPoint(year, barycentric, vertices);
                     
-                    // Mark as responded
                     if (year === '2025') {
                         hasResponded2025 = true;
                     } else {
                         hasResponded2075 = true;
                     }
                     
-                    // Visual feedback that chart is locked
                     svg.style('cursor', 'not-allowed');
                     svg.style('opacity', '0.7');
                 }
             });
             
-            // Store vertices for later use
             svg.datum({ vertices, year });
             
             return { svg, vertices };
@@ -492,59 +545,49 @@
                    Math.abs(bary.a + bary.b + bary.c - 1) < 0.01;
         }
 
-        function addDataPoint(year, barycentric, vertices) {
+        async function addDataPoint(year, barycentric, vertices) {
             const dataArray = year === '2025' ? data2025 : data2075;
             const svgId = year === '2025' ? 'plot2025' : 'plot2075';
             
-            // Increment response counter
-            responseCounter++;
-            
-            // Add only the user's own response (not displaying other responses)
-            const userResponse = {
-                id: responseCounter,
-                user_id: userNickname,
-                a: barycentric.a,
-                b: barycentric.b,
-                c: barycentric.c,
-                year: year,
-                timestamp: new Date().toISOString()
-            };
-            
-            dataArray.push(userResponse);
-            
-                // 🟣 STEP 3: Save to Supabase database
-    supabase
-      .from('responses')
-      .insert([{
-        user_id: userNickname,
-        a: barycentric.a,
-        b: barycentric.b,
-        c: barycentric.c,
-        year: parseInt(year)
-      }])
-      .then(({ error }) => {
-        if (error) {
-          console.error("❌ Supabase insert error:", error);
-          alert("There was an issue saving your response. Please try again.");
-        } else {
-          console.log("✅ Response saved to Supabase!");
-        }
-      });
-
-            // Display only the user's response
-            updateChart(svgId, [userResponse], vertices);
-            updateStats();
-            
-            // Show confirmation message with nickname
-            setTimeout(() => {
-                alert(`✓ Your response for ${year} has been recorded!\nYour user ID: ${userNickname}\nThe chart is now locked.`);
-            }, 100);
+            try {
+                const { data: insertedData, error } = await supabase
+                    .from('responses')
+                    .insert([{
+                        user_id: userNickname,
+                        a: barycentric.a,
+                        b: barycentric.b,
+                        c: barycentric.c,
+                        year: parseInt(year)
+                    }])
+                    .select();
+                
+                if (error) {
+                    console.error("❌ Supabase insert error:", error);
+                    alert("There was an issue saving your response. Please try again.");
+                    return;
+                }
+                
+                console.log("✅ Response saved to Supabase!", insertedData);
+                
+                if (insertedData && insertedData.length > 0) {
+                    dataArray.push(insertedData[0]);
+                    updateChart(svgId, dataArray, vertices);
+                    updateStats();
+                    
+                    setTimeout(() => {
+                        alert(`✓ Your response for ${year} has been recorded!\nYour user ID: ${userNickname}\nThe chart is now locked.`);
+                    }, 100);
+                }
+            } catch (err) {
+                console.error("❌ Exception saving response:", err);
+                alert("There was an issue saving your response. Please try again.");
+            }
         }
 
         function updateChart(svgId, dataArray, vertices) {
             const svg = d3.select(`#${svgId}`);
             
-            const points = svg.selectAll('.point').data(dataArray);
+            const points = svg.selectAll('.point').data(dataArray, d => d.id);
             
             points.enter()
                 .append('circle')
@@ -575,40 +618,22 @@
             document.getElementById('count2075').textContent = data2075.length;
         }
 
-        function clearData(year) {
-            if (confirm(`Are you sure you want to clear all ${year} data?`)) {
-                if (year === '2025') {
-                    data2025 = [];
-                    const svg = d3.select('#plot2025');
-                    const vertices = svg.datum().vertices;
-                    updateChart('plot2025', data2025, vertices);
-                } else {
-                    data2075 = [];
-                    const svg = d3.select('#plot2075');
-                    const vertices = svg.datum().vertices;
-                    updateChart('plot2075', data2075, vertices);
-                }
-                updateStats();
-            }
-        }
-
         function exportData(format = 'json') {
             if (format === 'csv') {
-                // Create CSV content with specific column order
                 let csvContent = 'id,user_id,AI Usage,Global Human Equality,Overcoming Climate Change,year,Timestamp\n';
                 
-                // Combine both datasets and sort by ID
-                const allData = [...data2025, ...data2075].sort((a, b) => a.id - b.id);
+                const allData = [...data2025, ...data2075].sort((a, b) => 
+                    new Date(a.created_at) - new Date(b.created_at)
+                );
                 
-                // Add each response
                 allData.forEach(point => {
                     const aiUsage = (point.a * 100).toFixed(2);
                     const equality = (point.b * 100).toFixed(2);
                     const climate = (point.c * 100).toFixed(2);
-                    csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${point.timestamp}\n`;
+                    const timestamp = point.created_at || new Date().toISOString();
+                    csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${timestamp}\n`;
                 });
                 
-                // Download CSV
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -617,11 +642,11 @@
                 link.click();
                 URL.revokeObjectURL(url);
             } else {
-                // Original JSON export
                 const exportData = {
                     timestamp: new Date().toISOString(),
                     data2025: data2025,
-                    data2075: data2075
+                    data2075: data2075,
+                    total_responses: data2025.length + data2075.length
                 };
                 
                 const dataStr = JSON.stringify(exportData, null, 2);
@@ -636,16 +661,42 @@
         }
 
         // Initialize charts on load
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             initChart('plot2025', '2025');
             initChart('plot2075', '2075');
-            updateStats();
+            
+            await loadExistingData();
+            
+            // Set up real-time subscription
+            const channel = supabase
+                .channel('responses_changes')
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'responses' },
+                    (payload) => {
+                        console.log('🔔 New response received:', payload);
+                        
+                        if (payload.new.year === 2025) {
+                            data2025.push(payload.new);
+                            const svg = d3.select('#plot2025');
+                            if (svg.datum()?.vertices) {
+                                updateChart('plot2025', data2025, svg.datum().vertices);
+                            }
+                        } else {
+                            data2075.push(payload.new);
+                            const svg = d3.select('#plot2075');
+                            if (svg.datum()?.vertices) {
+                                updateChart('plot2075', data2075, svg.datum().vertices);
+                            }
+                        }
+                        
+                        updateStats();
+                    }
+                )
+                .subscribe();
         });
 
         // Handle window resize
         window.addEventListener('resize', () => {
-            const svg2025 = d3.select('#plot2025');
-            const svg2075 = d3.select('#plot2075');
             const vertices2025 = initChart('plot2025', '2025').vertices;
             const vertices2075 = initChart('plot2075', '2075').vertices;
             updateChart('plot2025', data2025, vertices2025);
