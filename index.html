@@ -202,7 +202,7 @@
         a: presentPoint.a,
         b: presentPoint.b,
         c: presentPoint.c,
-        survey_year: 2025,
+        year: 2025,
         timestamp: nowISO()
       };
       await saveToSupabase(data, presentStatus, presentSubmit);
@@ -218,7 +218,7 @@
         a: futurePoint.a,
         b: futurePoint.b,
         c: futurePoint.c,
-        survey_year: 2075,
+        year: 2075,
         timestamp: nowISO()
       };
       await saveToSupabase(data, futureStatus, futureSubmit);
