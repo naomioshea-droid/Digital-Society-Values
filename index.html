@@ -134,8 +134,9 @@
         
         .stat-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
+            margin-bottom: 20px;
         }
         
         .stat-item {
@@ -198,9 +199,22 @@
             transform: scale(1.05);
         }
         
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
         .controls {
             text-align: center;
             margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-style: italic;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -217,6 +231,7 @@
             <p><strong>Click anywhere</strong> inside each triangle to record your priority allocation. Your click represents how you would distribute focus across three critical global challenges.</p>
             <p>The closer your click is to a corner, the more priority you're giving to that challenge. Points near the center represent balanced priorities.</p>
             <p><strong>Challenge yourself:</strong> How do your priorities differ between today and 50 years from now?</p>
+            <p><strong>💾 Data Storage:</strong> All responses are automatically saved to a shared database. Your data will be included in the combined export!</p>
         </div>
         
         <div class="charts-container">
@@ -236,8 +251,12 @@
         </div>
         
         <div class="stats">
-            <h3>Response Statistics</h3>
+            <h3>Response Statistics (All Users)</h3>
             <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Total Participants</div>
+                    <div class="stat-value" id="totalUsers">0</div>
+                </div>
                 <div class="stat-item">
                     <div class="stat-label">2025 Responses</div>
                     <div class="stat-value" id="count2025">0</div>
@@ -248,24 +267,23 @@
                 </div>
             </div>
             <div class="controls">
-                <button onclick="exportData('json')">Export as JSON</button>
-                <button onclick="exportData('csv')">Export as CSV</button>
+                <button onclick="exportData('csv')" id="exportBtn">Export All Data as CSV</button>
+                <button onclick="exportData('json')" id="exportJsonBtn">Export All Data as JSON</button>
             </div>
+            <div class="loading" id="loadingMsg"></div>
         </div>
     </div>
 
     <script>
-        // Data storage
-        let data2025 = [];
-        let data2075 = [];
-        
         // Track if user has responded
         let hasResponded2025 = false;
         let hasResponded2075 = false;
         
         // Generate unique user ID (nickname) for this session
         let userNickname = generateNickname();
-        let responseCounter = 0; // Global counter for ID numbers
+        
+        // Global ID counter (will be loaded from storage)
+        let globalIdCounter = 0;
 
         // Chart configuration
         const config = {
@@ -287,6 +305,25 @@
             const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
             const randomNum = Math.floor(Math.random() * 1000);
             return `${randomAdj}${randomNoun}${randomNum}`;
+        }
+
+        // Initialize storage and load existing data
+        async function initializeStorage() {
+            try {
+                // Load the counter
+                const counterResult = await window.storage.get('survey:counter', true);
+                if (counterResult) {
+                    globalIdCounter = parseInt(counterResult.value);
+                } else {
+                    globalIdCounter = 0;
+                }
+                
+                // Update stats display
+                await updateStatsFromStorage();
+            } catch (error) {
+                console.error('Error initializing storage:', error);
+                globalIdCounter = 0;
+            }
         }
 
         // Initialize both charts
@@ -487,34 +524,46 @@
                    Math.abs(bary.a + bary.b + bary.c - 1) < 0.01;
         }
 
-        function addDataPoint(year, barycentric, vertices) {
-            const dataArray = year === '2025' ? data2025 : data2075;
+        async function addDataPoint(year, barycentric, vertices) {
             const svgId = year === '2025' ? 'plot2025' : 'plot2075';
             
-            // Increment response counter
-            responseCounter++;
-            
-            // Add only the user's own response (not displaying other responses)
-            const userResponse = {
-                id: responseCounter,
-                user_id: userNickname,
-                a: barycentric.a,
-                b: barycentric.b,
-                c: barycentric.c,
-                year: year,
-                timestamp: new Date().toISOString()
-            };
-            
-            dataArray.push(userResponse);
-            
-            // Display only the user's response
-            updateChart(svgId, [userResponse], vertices);
-            updateStats();
-            
-            // Show confirmation message with nickname
-            setTimeout(() => {
-                alert(`✓ Your response for ${year} has been recorded!\nYour user ID: ${userNickname}\nThe chart is now locked.`);
-            }, 100);
+            try {
+                // Increment global counter
+                globalIdCounter++;
+                
+                // Create response object
+                const userResponse = {
+                    id: globalIdCounter,
+                    user_id: userNickname,
+                    a: barycentric.a,
+                    b: barycentric.b,
+                    c: barycentric.c,
+                    year: year,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Save to persistent storage
+                const key = `response:${userNickname}:${year}`;
+                await window.storage.set(key, JSON.stringify(userResponse), true);
+                
+                // Update counter in storage
+                await window.storage.set('survey:counter', globalIdCounter.toString(), true);
+                
+                // Display only the user's response
+                updateChart(svgId, [userResponse], vertices);
+                
+                // Update stats
+                await updateStatsFromStorage();
+                
+                // Show confirmation message with nickname
+                setTimeout(() => {
+                    alert(`✓ Your response for ${year} has been recorded!\nYour user ID: ${userNickname}\nThe chart is now locked.\n\nYour data has been saved to the shared database!`);
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Error saving your response. Please try again.');
+            }
         }
 
         function updateChart(svgId, dataArray, vertices) {
@@ -546,69 +595,136 @@
             points.exit().remove();
         }
 
-        function updateStats() {
-            document.getElementById('count2025').textContent = data2025.length;
-            document.getElementById('count2075').textContent = data2075.length;
+        async function updateStatsFromStorage() {
+            try {
+                // Get all response keys
+                const allKeys = await window.storage.list('response:', true);
+                
+                if (allKeys && allKeys.keys) {
+                    const keys = allKeys.keys;
+                    
+                    // Count responses by year
+                    let count2025 = 0;
+                    let count2075 = 0;
+                    const uniqueUsers = new Set();
+                    
+                    for (const key of keys) {
+                        try {
+                            const result = await window.storage.get(key, true);
+                            if (result) {
+                                const data = JSON.parse(result.value);
+                                uniqueUsers.add(data.user_id);
+                                if (data.year === '2025') count2025++;
+                                if (data.year === '2075') count2075++;
+                            }
+                        } catch (e) {
+                            console.error('Error parsing response:', e);
+                        }
+                    }
+                    
+                    document.getElementById('count2025').textContent = count2025;
+                    document.getElementById('count2075').textContent = count2075;
+                    document.getElementById('totalUsers').textContent = uniqueUsers.size;
+                }
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
         }
 
-        function exportData(format = 'json') {
-            if (format === 'csv') {
-                // Create CSV content with specific column order
-                let csvContent = 'id,user_id,AI Usage,Global Human Equality,Overcoming Climate Change,year,Timestamp\n';
+        async function exportData(format = 'json') {
+            const loadingMsg = document.getElementById('loadingMsg');
+            loadingMsg.textContent = 'Loading all responses...';
+            
+            try {
+                // Get all response keys
+                const allKeys = await window.storage.list('response:', true);
                 
-                // Combine both datasets and sort by ID
-                const allData = [...data2025, ...data2075].sort((a, b) => a.id - b.id);
+                if (!allKeys || !allKeys.keys || allKeys.keys.length === 0) {
+                    alert('No data available to export.');
+                    loadingMsg.textContent = '';
+                    return;
+                }
                 
-                // Add each response
-                allData.forEach(point => {
-                    const aiUsage = (point.a * 100).toFixed(2);
-                    const equality = (point.b * 100).toFixed(2);
-                    const climate = (point.c * 100).toFixed(2);
-                    csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${point.timestamp}\n`;
-                });
+                // Load all responses
+                const allResponses = [];
+                for (const key of allKeys.keys) {
+                    try {
+                        const result = await window.storage.get(key, true);
+                        if (result) {
+                            const data = JSON.parse(result.value);
+                            allResponses.push(data);
+                        }
+                    } catch (e) {
+                        console.error('Error loading response:', e);
+                    }
+                }
                 
-                // Download CSV
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `priority_survey_${Date.now()}.csv`;
-                link.click();
-                URL.revokeObjectURL(url);
-            } else {
-                // Original JSON export
-                const exportData = {
-                    timestamp: new Date().toISOString(),
-                    data2025: data2025,
-                    data2075: data2075
-                };
+                // Sort by ID
+                allResponses.sort((a, b) => a.id - b.id);
                 
-                const dataStr = JSON.stringify(exportData, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(dataBlob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `priority_survey_${Date.now()}.json`;
-                link.click();
-                URL.revokeObjectURL(url);
+                if (format === 'csv') {
+                    // Create CSV content
+                    let csvContent = 'id,user_id,AI Usage,Global Human Equality,Overcoming Climate Change,year,Timestamp\n';
+                    
+                    allResponses.forEach(point => {
+                        const aiUsage = (point.a * 100).toFixed(2);
+                        const equality = (point.b * 100).toFixed(2);
+                        const climate = (point.c * 100).toFixed(2);
+                        csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${point.timestamp}\n`;
+                    });
+                    
+                    // Download CSV
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `priority_survey_all_responses_${Date.now()}.csv`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    loadingMsg.textContent = `✓ Exported ${allResponses.length} responses successfully!`;
+                } else {
+                    // JSON export
+                    const exportData = {
+                        timestamp: new Date().toISOString(),
+                        totalResponses: allResponses.length,
+                        responses: allResponses
+                    };
+                    
+                    const dataStr = JSON.stringify(exportData, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `priority_survey_all_responses_${Date.now()}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    loadingMsg.textContent = `✓ Exported ${allResponses.length} responses successfully!`;
+                }
+                
+                setTimeout(() => {
+                    loadingMsg.textContent = '';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                alert('Error exporting data. Please try again.');
+                loadingMsg.textContent = '';
             }
         }
 
         // Initialize charts on load
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+            await initializeStorage();
             initChart('plot2025', '2025');
             initChart('plot2075', '2075');
-            updateStats();
         });
 
         // Handle window resize
         window.addEventListener('resize', () => {
-            const svg2025 = d3.select('#plot2025');
-            const svg2075 = d3.select('#plot2075');
-            const vertices2025 = initChart('plot2025', '2025').vertices;
-            const vertices2075 = initChart('plot2075', '2075').vertices;
-            updateChart('plot2025', data2025, vertices2025);
-            updateChart('plot2075', data2075, vertices2075);
+            initChart('plot2025', '2025');
+            initChart('plot2075', '2075');
         });
     </script>
 </body>
