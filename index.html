@@ -248,8 +248,6 @@
                 </div>
             </div>
             <div class="controls">
-                <button onclick="clearData('2025')">Clear 2025 Data</button>
-                <button onclick="clearData('2075')">Clear 2075 Data</button>
                 <button onclick="exportData('json')">Export as JSON</button>
                 <button onclick="exportData('csv')">Export as CSV</button>
             </div>
@@ -551,23 +549,6 @@
         function updateStats() {
             document.getElementById('count2025').textContent = data2025.length;
             document.getElementById('count2075').textContent = data2075.length;
-        }
-
-        function clearData(year) {
-            if (confirm(`Are you sure you want to clear all ${year} data?`)) {
-                if (year === '2025') {
-                    data2025 = [];
-                    const svg = d3.select('#plot2025');
-                    const vertices = svg.datum().vertices;
-                    updateChart('plot2025', data2025, vertices);
-                } else {
-                    data2075 = [];
-                    const svg = d3.select('#plot2075');
-                    const vertices = svg.datum().vertices;
-                    updateChart('plot2075', data2075, vertices);
-                }
-                updateStats();
-            }
         }
 
         function exportData(format = 'json') {
