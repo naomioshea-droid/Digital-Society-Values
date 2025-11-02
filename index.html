@@ -114,21 +114,25 @@
     if(!USER_ID){ USER_ID = uuid(); localStorage.setItem('values_user_id', USER_ID); }
 
     const values = {A:'Maximising AI Usage', B:'Overcoming Climate Change', C:'Global Human Equality'};
-    const layout = (title) => ({
+  // put this in place of your current layout(...)
+const layout = (title) => ({
   title: {
     text: title,
-    y: 0.95,   // moves the title slightly higher above the triangle
-    pad: { b: 40 }  // adds padding *below* the title
+    y: 0.98,           // a bit higher
+    pad: { b: 40 }     // space below the title
   },
   ternary: {
+    // pull the whole triangle inward so corner labels have room
+    domain: { x: [0.08, 0.92], y: [0.10, 0.92] }, 
     sum: 1,
-    aaxis: { title: values.A, min: 0 },
-    baxis: { title: values.B, min: 0 },
-    caxis: { title: values.C, min: 0 }
+    aaxis: { title: { text: values.A }, min: 0 }, // top apex label
+    baxis: { title: { text: values.B }, min: 0 }, // bottom-right corner
+    caxis: { title: { text: values.C }, min: 0 }  // bottom-left corner
   },
-  margin: { l: 20, r: 20, t: 120, b: 20 } // increase t for more space
+  // more room around the figure so nothing gets clipped
+  margin: { l: 80, r: 80, b: 100, t: 120 }
 });
-
+    
 
     function renderPlot(divId,title){
       Plotly.newPlot(divId,[{type:'scatterternary',a:[],b:[],c:[],mode:'markers',marker:{size:10}}],
