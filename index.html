@@ -128,16 +128,6 @@
     const SUPABASE_URL = 'https://vvsmbbiovppehkydxhmu.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
 
-    // Log any errors clearly
-    window.addEventListener('error', (e) => {
-      console.error('Runtime error:', e.error || e.message);
-      const el = document.querySelector('.footer');
-      const p = document.createElement('p');
-      p.className = 'error';
-      p.textContent = '⚠️ JavaScript error: ' + (e.error?.message || e.message);
-      el.appendChild(p);
-    });
-
     async function saveToSupabase(data, statusEl, buttonEl, storageKey) {
       console.log('Submitting to Supabase:', data);
       statusEl.textContent = 'Submitting…';
@@ -182,7 +172,7 @@
         a: presentPoint.a,
         b: presentPoint.b,
         c: presentPoint.c,
-        year: 2025,
+        survey_year: 2025,   // ✅ renamed for clarity
         timestamp: nowISO()
       };
       await saveToSupabase(data, presentStatus, presentSubmit, 'values_submitted_2025');
@@ -195,7 +185,7 @@
         a: futurePoint.a,
         b: futurePoint.b,
         c: futurePoint.c,
-        year: 2075,
+        survey_year: 2075,   // ✅ renamed for clarity
         timestamp: nowISO()
       };
       await saveToSupabase(data, futureStatus, futureSubmit, 'values_submitted_2075');
