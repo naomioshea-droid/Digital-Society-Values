@@ -198,13 +198,13 @@
         return;
       }
       const data = {
-        user_id: USER_ID,
-        a: presentPoint.a,
-        b: presentPoint.b,
-        c: presentPoint.c,
-        year: 2025,
-        timestamp: nowISO()
-      };
+  user_id: USER_ID,
+  a: presentPoint.a,
+  b: presentPoint.b,
+  c: presentPoint.c,
+  year: 2025
+};
+
       await saveToSupabase(data, presentStatus, presentSubmit);
     });
 
@@ -219,8 +219,8 @@
         b: futurePoint.b,
         c: futurePoint.c,
         year: 2075,
-        timestamp: nowISO()
       };
+      
       await saveToSupabase(data, futureStatus, futureSubmit);
     });
 
