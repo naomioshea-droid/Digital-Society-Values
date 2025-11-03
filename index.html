@@ -329,14 +329,14 @@
                     
                     const { data, error } = await supabase
                         .from('responses')
-                        .insert([insertData])
+                        .insert([insertData]);
                     
                     if (error) {
                         console.error('Supabase error details:', error);
                         throw error;
                     }
                     
-                    console.log('Successfully saved:', data);
+                    console.log('Successfully saved response');
                     this.updateStatus('✓ Your vision has been recorded!', 'success');
                 } catch (error) {
                     console.error('Full error:', error);
