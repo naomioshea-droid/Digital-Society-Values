@@ -330,7 +330,6 @@
                     const { data, error } = await supabase
                         .from('responses')
                         .insert([insertData])
-                        .select();
                     
                     if (error) {
                         console.error('Supabase error details:', error);
