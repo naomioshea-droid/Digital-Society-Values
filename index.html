@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Priority Survey: Present vs Future</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <title>Future Priorities Survey</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -12,762 +11,342 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             padding: 20px;
-            color: #333;
+            color: #fff;
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-        
+
         h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 2.5rem;
+            margin: 20px 0;
+            text-align: center;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        
+
         .subtitle {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .connection-status {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin-top: 10px;
-        }
-
-        .connected {
-            background: #4caf50;
-            color: white;
-        }
-
-        .disconnected {
-            background: #f44336;
-            color: white;
-        }
-
-        .loading-indicator {
-            text-align: center;
-            color: white;
-            font-size: 1.2em;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        
-        .charts-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 30px;
+            font-size: 1.1rem;
             margin-bottom: 30px;
+            text-align: center;
+            opacity: 0.95;
         }
-        
-        .chart-wrapper {
-            background: white;
-            border-radius: 15px;
+
+        .container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1400px;
+        }
+
+        .plot-section {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            transition: transform 0.3s ease;
-            position: relative;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
-        .chart-wrapper::before {
-            content: '⚠️ ONE CLICK ONLY';
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #ff6b6b;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.75em;
-            font-weight: bold;
-            z-index: 10;
-        }
-        
-        .chart-wrapper:hover {
-            transform: translateY(-5px);
-        }
-        
-        .chart-title {
+
+        .plot-title {
+            font-size: 2rem;
             text-align: center;
-            font-size: 1.8em;
-            font-weight: bold;
             margin-bottom: 20px;
-            color: #667eea;
+            font-weight: 700;
+            letter-spacing: 2px;
         }
-        
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 600px;
-        }
-        
-        .ternary-plot {
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        
-        .ternary-plot.locked {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        
-        .instructions {
-            background: rgba(255,255,255,0.95);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .instructions h2 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-        
-        .instructions p {
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-        
-        .stats {
+
+        canvas {
+            display: block;
+            cursor: crosshair;
             background: white;
             border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .status {
+            margin-top: 15px;
             text-align: center;
-        }
-        
-        .stats h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-        
-        .stat-item {
-            background: #f8f9fa;
-            padding: 15px;
+            font-size: 0.9rem;
+            padding: 10px;
             border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            min-height: 40px;
         }
-        
-        .stat-label {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 5px;
+
+        .success {
+            background: rgba(72, 187, 120, 0.3);
         }
-        
-        .stat-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #667eea;
+
+        .error {
+            background: rgba(245, 101, 101, 0.3);
         }
-        
-        .axis-label {
-            font-weight: bold;
-            font-size: 14px;
-            fill: #333;
-            paint-order: stroke;
-            stroke: white;
-            stroke-width: 3px;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-        
-        .grid-line {
-            stroke: #ddd;
-            stroke-width: 1;
-        }
-        
-        .point {
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .point:hover {
-            r: 8;
-        }
-        
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1em;
-            border-radius: 25px;
-            cursor: pointer;
-            margin: 5px;
-            transition: all 0.3s;
-        }
-        
-        button:hover {
-            background: #764ba2;
-            transform: scale(1.05);
-        }
-        
-        .controls {
-            text-align: center;
-            margin-top: 20px;
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            .container {
+                gap: 20px;
+            }
+            .plot-section {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <h1>🌍 Shape Our Future 🚀</h1>
+    <p class="subtitle">Where should humanity focus? Click on each triangle to share your vision.</p>
+    
     <div class="container">
-        <header>
-            <h1>Global Priorities Survey</h1>
-            <p class="subtitle">How do your priorities shift from present to future?</p>
-            <div id="connectionStatus" class="connection-status disconnected">Connecting...</div>
-        </header>
-        
-        <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-            📊 Loading existing responses...
-        </div>
-
-        <div class="instructions">
-            <h2>📊 How to Use</h2>
-            <p><strong>⚠️ IMPORTANT: You can only click ONCE per chart!</strong> Think carefully before placing your point.</p>
-            <p><strong>Click anywhere</strong> inside each triangle to record your priority allocation. Your click represents how you would distribute focus across three critical global challenges.</p>
-            <p>The closer your click is to a corner, the more priority you're giving to that challenge. Points near the center represent balanced priorities.</p>
-            <p><strong>Challenge yourself:</strong> How do your priorities differ between today and 50 years from now?</p>
+        <div class="plot-section">
+            <h2 class="plot-title">2025</h2>
+            <canvas id="canvas2025" width="500" height="500"></canvas>
+            <div id="status2025" class="status">Click on the triangle to cast your vote</div>
         </div>
         
-        <div class="charts-container">
-            <div class="chart-wrapper">
-                <div class="chart-title">Present Day - 2025</div>
-                <div class="chart-container">
-                    <svg class="ternary-plot" id="plot2025"></svg>
-                </div>
-            </div>
-            
-            <div class="chart-wrapper">
-                <div class="chart-title">Future - 2075</div>
-                <div class="chart-container">
-                    <svg class="ternary-plot" id="plot2075"></svg>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stats">
-            <h3>Response Statistics</h3>
-            <div class="stat-grid">
-                <div class="stat-item">
-                    <div class="stat-label">2025 Responses</div>
-                    <div class="stat-value" id="count2025">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">2075 Responses</div>
-                    <div class="stat-value" id="count2075">0</div>
-                </div>
-            </div>
-            <div class="controls">
-                <button onclick="exportData('json')">Export as JSON</button>
-                <button onclick="exportData('csv')">Export as CSV</button>
-            </div>
+        <div class="plot-section">
+            <h2 class="plot-title">2075</h2>
+            <canvas id="canvas2075" width="500" height="500"></canvas>
+            <div id="status2075" class="status">Click on the triangle to cast your vote</div>
         </div>
     </div>
 
     <script>
-        // ===== SUPABASE CONFIGURATION =====
-        const SUPABASE_URL = "https://moonehjcqazohpajuaho.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vb25laGpjcWF6b2hwYWp1YWhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMTE5NzYsImV4cCI6MjA3NzY4Nzk3Nn0.W4eVLfOALpHBg2N7Fisv4gx6BFQXzPHhY0";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseUrl = 'https://vvsmbbiovppehkydxhmu.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2c21iYmlvdnBwZWhreWR4aG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjk3MDQsImV4cCI6MjA3NzQwNTcwNH0.efLojggzexktrFuSAiaZajIxdVmNLgcC17Dmn_nABNM';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Data storage
-        let data2025 = [];
-        let data2075 = [];
-        
-        // Track if user has responded
-        let hasResponded2025 = false;
-        let hasResponded2075 = false;
-        
-        // Generate unique user ID (nickname) for this session
-        let userNickname = generateNickname();
-        let isConnected = false;
-
-        // Chart configuration
-        const config = {
-            width: 500,
-            height: 500,
-            margin: 100,
-            labels: {
-                A: 'Maximising AI Usage',
-                B: 'Global Human Equality',
-                C: 'Overcoming Climate Change'
+        class TernaryPlot {
+            constructor(canvasId, year, statusId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.year = year;
+                this.statusEl = document.getElementById(statusId);
+                this.size = 500;
+                this.padding = 80;
+                this.height = (Math.sqrt(3) / 2) * (this.size - 2 * this.padding);
+                
+                this.labels = [
+                    'Maximising AI Usage',
+                    'Global Human Equality',
+                    'Overcoming Climate Change'
+                ];
+                
+                this.init();
             }
-        };
-        
-        // Function to generate random nickname
-        function generateNickname() {
-            const adjectives = ['Swift', 'Bright', 'Bold', 'Wise', 'Cool', 'Quick', 'Smart', 'Clever', 'Sharp', 'Keen'];
-            const nouns = ['Panda', 'Eagle', 'Tiger', 'Dragon', 'Phoenix', 'Wolf', 'Fox', 'Bear', 'Hawk', 'Lion'];
-            const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
-            const randomNum = Math.floor(Math.random() * 1000);
-            return `${randomAdj}${randomNoun}${randomNum}`;
-        }
 
-        // Update connection status display
-        function updateConnectionStatus(connected) {
-            const statusEl = document.getElementById('connectionStatus');
-            isConnected = connected;
-            
-            if (connected) {
-                statusEl.textContent = '✓ Connected to Database';
-                statusEl.className = 'connection-status connected';
-            } else {
-                statusEl.textContent = '✗ Offline Mode';
-                statusEl.className = 'connection-status disconnected';
+            init() {
+                this.drawTriangle();
+                this.drawLabels();
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
             }
-        }
 
-        // Load existing responses from Supabase
-        async function loadExistingData() {
-            const loadingEl = document.getElementById('loadingIndicator');
-            loadingEl.style.display = 'block';
-            
-            try {
-                const { data, error } = await supabase
-                    .from('responses')
-                    .select('*')
-                    .order('created_at', { ascending: true });
+            drawTriangle() {
+                const p = this.padding;
+                const w = this.size - 2 * p;
+                const h = this.height;
                 
-                if (error) {
-                    console.error("❌ Error loading data:", error);
-                    updateConnectionStatus(false);
-                    loadingEl.textContent = '⚠️ Could not load data. Working in offline mode.';
-                    setTimeout(() => loadingEl.style.display = 'none', 3000);
-                    return;
-                }
+                // Triangle vertices
+                const top = { x: p + w / 2, y: p };
+                const left = { x: p, y: p + h };
+                const right = { x: p + w, y: p + h };
                 
-                console.log("✅ Loaded", data.length, "existing responses");
-                updateConnectionStatus(true);
-                
-                // Separate by year
-                data2025 = data.filter(d => d.year === 2025);
-                data2075 = data.filter(d => d.year === 2075);
-                
-                // Update charts with all data
-                const svg2025 = d3.select('#plot2025');
-                const svg2075 = d3.select('#plot2075');
-                
-                if (svg2025.datum()?.vertices) {
-                    updateChart('plot2025', data2025, svg2025.datum().vertices);
-                }
-                if (svg2075.datum()?.vertices) {
-                    updateChart('plot2075', data2075, svg2075.datum().vertices);
-                }
-                
-                updateStats();
-                loadingEl.style.display = 'none';
-            } catch (err) {
-                console.error("❌ Exception loading data:", err);
-                updateConnectionStatus(false);
-                loadingEl.textContent = '⚠️ Connection error. Working in offline mode.';
-                setTimeout(() => loadingEl.style.display = 'none', 3000);
-            }
-        }
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(top.x, top.y);
+                this.ctx.lineTo(left.x, left.y);
+                this.ctx.lineTo(right.x, right.y);
+                this.ctx.closePath();
+                this.ctx.stroke();
 
-        // Initialize both charts
-        function initChart(svgId, year) {
-            const svg = d3.select(`#${svgId}`);
-            const container = svg.node().parentElement;
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            
-            svg.attr('width', width).attr('height', height);
-            
-            const size = Math.min(width, height) - 2 * config.margin;
-            const h = size * Math.sqrt(3) / 2;
-            
-            const centerX = width / 2;
-            const centerY = height / 2;
-            
-            // Triangle vertices
-            const vertices = {
-                A: { x: centerX, y: centerY - h * 2/3 },
-                B: { x: centerX - size/2, y: centerY + h/3 },
-                C: { x: centerX + size/2, y: centerY + h/3 }
-            };
-            
-            // Clear previous content
-            svg.selectAll('*').remove();
-            
-            const g = svg.append('g');
-            
-            // Draw grid lines
-            for (let i = 0; i <= 10; i++) {
-                const t = i / 10;
+                // Grid lines - symmetrical
+                this.ctx.strokeStyle = '#ddd';
+                this.ctx.lineWidth = 1;
                 
-                // Lines parallel to BC
-                const p1 = interpolateVertex(vertices.B, vertices.C, 0, t);
-                const p2 = interpolateVertex(vertices.B, vertices.C, 1, t);
-                g.append('line')
-                    .attr('x1', p1.x).attr('y1', p1.y)
-                    .attr('x2', p2.x).attr('y2', p2.y)
-                    .attr('class', 'grid-line');
-                
-                // Lines parallel to AC
-                const p3 = interpolateVertex(vertices.A, vertices.C, 0, t);
-                const p4 = interpolateVertex(vertices.A, vertices.C, 1, t);
-                g.append('line')
-                    .attr('x1', p3.x).attr('y1', p3.y)
-                    .attr('x2', p4.x).attr('y2', p4.y)
-                    .attr('class', 'grid-line');
-                
-                // Lines parallel to AB
-                const p5 = interpolateVertex(vertices.A, vertices.B, 0, t);
-                const p6 = interpolateVertex(vertices.A, vertices.B, 1, t);
-                g.append('line')
-                    .attr('x1', p5.x).attr('y1', p5.y)
-                    .attr('x2', p6.x).attr('y2', p6.y)
-                    .attr('class', 'grid-line');
-            }
-            
-            // Draw triangle border
-            g.append('polygon')
-                .attr('points', `${vertices.A.x},${vertices.A.y} ${vertices.B.x},${vertices.B.y} ${vertices.C.x},${vertices.C.y}`)
-                .attr('fill', 'none')
-                .attr('stroke', '#333')
-                .attr('stroke-width', 3);
-            
-            // Add labels
-            g.append('text')
-                .attr('x', vertices.A.x)
-                .attr('y', vertices.A.y - 40)
-                .attr('text-anchor', 'middle')
-                .attr('class', 'axis-label')
-                .style('font-size', '16px')
-                .style('font-weight', 'bold')
-                .text(config.labels.A);
-            
-            g.append('text')
-                .attr('x', vertices.B.x - 50)
-                .attr('y', vertices.B.y + 45)
-                .attr('text-anchor', 'middle')
-                .attr('class', 'axis-label')
-                .style('font-size', '13px')
-                .style('font-weight', 'bold')
-                .text('Global Human');
-            
-            g.append('text')
-                .attr('x', vertices.B.x - 50)
-                .attr('y', vertices.B.y + 60)
-                .attr('text-anchor', 'middle')
-                .attr('class', 'axis-label')
-                .style('font-size', '13px')
-                .style('font-weight', 'bold')
-                .text('Equality');
-            
-            g.append('text')
-                .attr('x', vertices.C.x + 50)
-                .attr('y', vertices.C.y + 45)
-                .attr('text-anchor', 'middle')
-                .attr('class', 'axis-label')
-                .style('font-size', '13px')
-                .style('font-weight', 'bold')
-                .text('Overcoming');
-            
-            g.append('text')
-                .attr('x', vertices.C.x + 50)
-                .attr('y', vertices.C.y + 60)
-                .attr('text-anchor', 'middle')
-                .attr('class', 'axis-label')
-                .style('font-size', '13px')
-                .style('font-weight', 'bold')
-                .text('Climate Change');
-            
-            // Click handler
-            svg.on('click', function(event) {
-                const hasResponded = year === '2025' ? hasResponded2025 : hasResponded2075;
-                
-                if (hasResponded) {
-                    alert(`You have already submitted your response for ${year}. Each user can only respond once per chart.`);
-                    return;
-                }
-                
-                const [mx, my] = d3.pointer(event);
-                const barycentric = cartesianToBarycentric(mx, my, vertices);
-                
-                if (isInsideTriangle(barycentric)) {
-                    addDataPoint(year, barycentric, vertices);
+                for (let i = 1; i < 10; i++) {
+                    const t = i / 10;
                     
-                    if (year === '2025') {
-                        hasResponded2025 = true;
-                    } else {
-                        hasResponded2075 = true;
-                    }
+                    // Lines parallel to bottom (left-right edge)
+                    const p1 = this.lerp(left, right, t);
+                    const p2 = this.lerp(left, top, t);
+                    const p3 = this.lerp(right, top, t);
                     
-                    svg.style('cursor', 'not-allowed');
-                    svg.style('opacity', '0.7');
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(p2.x, p2.y);
+                    this.ctx.lineTo(p3.x, p3.y);
+                    this.ctx.stroke();
+                    
+                    // Lines parallel to left edge (left-top)
+                    const q1 = this.lerp(left, top, t);
+                    const q2 = this.lerp(right, left, t);
+                    const q3 = this.lerp(right, top, t);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(q2.x, q2.y);
+                    this.ctx.lineTo(q3.x, q3.y);
+                    this.ctx.stroke();
+                    
+                    // Lines parallel to right edge (right-top)
+                    const r1 = this.lerp(right, top, t);
+                    const r2 = this.lerp(left, right, t);
+                    const r3 = this.lerp(left, top, t);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(r2.x, r2.y);
+                    this.ctx.lineTo(r3.x, r3.y);
+                    this.ctx.stroke();
                 }
-            });
-            
-            svg.datum({ vertices, year });
-            
-            return { svg, vertices };
-        }
+            }
 
-        function interpolateVertex(v1, v2, side, t) {
-            if (side === 0) {
+            lerp(p1, p2, t) {
                 return {
-                    x: v1.x + t * (v2.x - v1.x),
-                    y: v1.y + t * (v2.y - v1.y)
-                };
-            } else {
-                const opposite = side === 1 ? 
-                    { x: (v1.x + v2.x) / 2, y: Math.min(v1.y, v2.y) - Math.abs(v2.x - v1.x) * Math.sqrt(3) / 2 } :
-                    v1;
-                return {
-                    x: v1.x + t * (opposite.x - v1.x),
-                    y: v1.y + t * (opposite.y - v1.y)
+                    x: p1.x + (p2.x - p1.x) * t,
+                    y: p1.y + (p2.y - p1.y) * t
                 };
             }
-        }
 
-        function cartesianToBarycentric(x, y, vertices) {
-            const { A, B, C } = vertices;
-            const v0x = C.x - A.x, v0y = C.y - A.y;
-            const v1x = B.x - A.x, v1y = B.y - A.y;
-            const v2x = x - A.x, v2y = y - A.y;
-            
-            const dot00 = v0x * v0x + v0y * v0y;
-            const dot01 = v0x * v1x + v0y * v1y;
-            const dot02 = v0x * v2x + v0y * v2y;
-            const dot11 = v1x * v1x + v1y * v1y;
-            const dot12 = v1x * v2x + v1y * v2y;
-            
-            const invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-            const c = (dot11 * dot02 - dot01 * dot12) * invDenom;
-            const b = (dot00 * dot12 - dot01 * dot02) * invDenom;
-            const a = 1 - b - c;
-            
-            return { a, b, c };
-        }
-
-        function barycentricToCartesian(bary, vertices) {
-            const { a, b, c } = bary;
-            const { A, B, C } = vertices;
-            return {
-                x: a * A.x + b * B.x + c * C.x,
-                y: a * A.y + b * B.y + c * C.y
-            };
-        }
-
-        function isInsideTriangle(bary) {
-            return bary.a >= 0 && bary.b >= 0 && bary.c >= 0 && 
-                   Math.abs(bary.a + bary.b + bary.c - 1) < 0.01;
-        }
-
-        async function addDataPoint(year, barycentric, vertices) {
-            const dataArray = year === '2025' ? data2025 : data2075;
-            const svgId = year === '2025' ? 'plot2025' : 'plot2075';
-            
-            // If offline, store locally only
-            if (!isConnected) {
-                const localResponse = {
-                    id: Date.now(),
-                    user_id: userNickname,
-                    a: barycentric.a,
-                    b: barycentric.b,
-                    c: barycentric.c,
-                    year: parseInt(year),
-                    created_at: new Date().toISOString()
-                };
+            drawLabels() {
+                const p = this.padding;
+                const w = this.size - 2 * p;
+                const h = this.height;
                 
-                dataArray.push(localResponse);
-                updateChart(svgId, dataArray, vertices);
-                updateStats();
+                this.ctx.fillStyle = '#333';
+                this.ctx.font = 'bold 13px Inter, sans-serif';
+                this.ctx.textAlign = 'center';
                 
-                alert(`✓ Response recorded locally!\nUser ID: ${userNickname}\n\n⚠️ Offline - not synced to server.`);
-                return;
+                // Top - A
+                this.ctx.fillText('A:', p + w / 2, p - 25);
+                this.ctx.font = '11px Inter, sans-serif';
+                this.ctx.fillText(this.labels[0], p + w / 2, p - 10);
+                
+                // Bottom left - B (moved closer to center)
+                this.ctx.font = 'bold 13px Inter, sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('B:', p + 60, p + h + 15);
+                this.ctx.font = '11px Inter, sans-serif';
+                const words1 = this.labels[1].split(' ');
+                this.ctx.fillText(words1[0] + ' ' + words1[1], p + 60, p + h + 28);
+                this.ctx.fillText(words1[2], p + 60, p + h + 40);
+                
+                // Bottom right - C (moved closer to center)
+                this.ctx.font = 'bold 13px Inter, sans-serif';
+                this.ctx.fillText('C:', p + w - 60, p + h + 15);
+                this.ctx.font = '11px Inter, sans-serif';
+                const words2 = this.labels[2].split(' ');
+                this.ctx.fillText(words2[0] + ' ' + words2[1], p + w - 60, p + h + 28);
+                this.ctx.fillText(words2[2], p + w - 60, p + h + 40);
             }
-            
-            // Save to Supabase
-            try {
-                const { data: insertedData, error } = await supabase
-                    .from('responses')
-                    .insert([{
-                        user_id: userNickname,
-                        a: barycentric.a,
-                        b: barycentric.b,
-                        c: barycentric.c,
-                        year: parseInt(year)
-                    }])
-                    .select();
+
+            isInsideTriangle(x, y) {
+                const p = this.padding;
+                const w = this.size - 2 * p;
+                const h = this.height;
                 
-                if (error) {
-                    console.error("❌ Supabase error:", error);
-                    alert("Error saving to database:\n" + error.message + "\n\nCheck console for details.");
+                const x1 = p + w / 2, y1 = p;
+                const x2 = p, y2 = p + h;
+                const x3 = p + w, y3 = p + h;
+                
+                const d1 = (x - x2) * (y1 - y2) - (x1 - x2) * (y - y2);
+                const d2 = (x - x3) * (y2 - y3) - (x2 - x3) * (y - y3);
+                const d3 = (x - x1) * (y3 - y1) - (x3 - x1) * (y - y1);
+                
+                const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+                const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+                
+                return !(hasNeg && hasPos);
+            }
+
+            getBarycentricCoords(x, y) {
+                const p = this.padding;
+                const w = this.size - 2 * p;
+                const h = this.height;
+                
+                const x1 = p + w / 2, y1 = p;
+                const x2 = p, y2 = p + h;
+                const x3 = p + w, y3 = p + h;
+                
+                const detT = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+                const a = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / detT;
+                const b = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / detT;
+                const c = 1 - a - b;
+                
+                return { a, b, c };
+            }
+
+            drawPoint(x, y) {
+                this.ctx.fillStyle = '#ff4757';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+            }
+
+            async handleClick(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (!this.isInsideTriangle(x, y)) {
+                    this.updateStatus('Please click inside the triangle', 'error');
                     return;
                 }
                 
-                console.log("✅ Saved to Supabase!", insertedData);
+                const coords = this.getBarycentricCoords(x, y);
                 
-                if (insertedData && insertedData.length > 0) {
-                    dataArray.push(insertedData[0]);
-                    updateChart(svgId, dataArray, vertices);
-                    updateStats();
-                    
-                    setTimeout(() => {
-                        alert(`✓ Response saved to database!\nUser ID: ${userNickname}\n\nChart is now locked.`);
-                    }, 100);
-                }
-            } catch (err) {
-                console.error("❌ Exception:", err);
-                alert("Network error:\n" + err.message);
+                // Redraw
+                this.ctx.clearRect(0, 0, this.size, this.size);
+                this.drawTriangle();
+                this.drawLabels();
+                this.drawPoint(x, y);
+                
+                this.updateStatus('Saving...', '');
+                
+                await this.saveToSupabase(coords);
             }
-        }
 
-        function updateChart(svgId, dataArray, vertices) {
-            const svg = d3.select(`#${svgId}`);
-            
-            const points = svg.selectAll('.point').data(dataArray, d => d.id);
-            
-            points.enter()
-                .append('circle')
-                .attr('class', 'point')
-                .attr('r', 0)
-                .attr('fill', svgId === 'plot2025' ? '#667eea' : '#764ba2')
-                .attr('opacity', 0.6)
-                .attr('stroke', 'white')
-                .attr('stroke-width', 2)
-                .merge(points)
-                .attr('cx', d => {
-                    const pos = barycentricToCartesian(d, vertices);
-                    return pos.x;
-                })
-                .attr('cy', d => {
-                    const pos = barycentricToCartesian(d, vertices);
-                    return pos.y;
-                })
-                .transition()
-                .duration(300)
-                .attr('r', 6);
-            
-            points.exit().remove();
-        }
-
-        function updateStats() {
-            document.getElementById('count2025').textContent = data2025.length;
-            document.getElementById('count2075').textContent = data2075.length;
-        }
-
-        function exportData(format = 'json') {
-            if (format === 'csv') {
-                let csvContent = 'id,user_id,AI Usage,Global Human Equality,Overcoming Climate Change,year,Timestamp\n';
-                
-                const allData = [...data2025, ...data2075].sort((a, b) => 
-                    new Date(a.created_at) - new Date(b.created_at)
-                );
-                
-                allData.forEach(point => {
-                    const aiUsage = (point.a * 100).toFixed(2);
-                    const equality = (point.b * 100).toFixed(2);
-                    const climate = (point.c * 100).toFixed(2);
-                    const timestamp = point.created_at || new Date().toISOString();
-                    csvContent += `${point.id},${point.user_id},${aiUsage},${equality},${climate},${point.year},${timestamp}\n`;
-                });
-                
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `priority_survey_${Date.now()}.csv`;
-                link.click();
-                URL.revokeObjectURL(url);
-            } else {
-                const exportData = {
-                    timestamp: new Date().toISOString(),
-                    data2025: data2025,
-                    data2075: data2075,
-                    total_responses: data2025.length + data2075.length
-                };
-                
-                const dataStr = JSON.stringify(exportData, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(dataBlob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `priority_survey_${Date.now()}.json`;
-                link.click();
-                URL.revokeObjectURL(url);
-            }
-        }
-
-        // Initialize on load
-        window.addEventListener('load', async () => {
-            initChart('plot2025', '2025');
-            initChart('plot2075', '2075');
-            
-            await loadExistingData();
-            
-            // Set up real-time updates if connected
-            if (isConnected) {
-                supabase
-                    .channel('responses_changes')
-                    .on('postgres_changes', 
-                        { event: 'INSERT', schema: 'public', table: 'responses' },
-                        (payload) => {
-                            console.log('🔔 New response:', payload);
-                            
-                            if (payload.new.year === 2025) {
-                                data2025.push(payload.new);
-                                const svg = d3.select('#plot2025');
-                                if (svg.datum()?.vertices) {
-                                    updateChart('plot2025', data2025, svg.datum().vertices);
-                                }
-                            } else {
-                                data2075.push(payload.new);
-                                const svg = d3.select('#plot2075');
-                                if (svg.datum()?.vertices) {
-                                    updateChart('plot2075', data2075, svg.datum().vertices);
-                                }
+            async saveToSupabase(coords) {
+                try {
+                    const { data, error } = await supabase
+                        .from('ternary_responses')
+                        .insert([
+                            {
+                                year: this.year,
+                                ai_usage: Math.round(coords.a * 100),
+                                human_equality: Math.round(coords.b * 100),
+                                climate_change: Math.round(coords.c * 100),
+                                timestamp: new Date().toISOString()
                             }
-                            
-                            updateStats();
-                        }
-                    )
-                    .subscribe();
+                        ]);
                     
-                console.log('✅ Real-time updates enabled');
+                    if (error) throw error;
+                    
+                    this.updateStatus('✓ Your vision has been recorded!', 'success');
+                } catch (error) {
+                    console.error('Error:', error);
+                    this.updateStatus('Error saving. Please try again.', 'error');
+                }
             }
-        });
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            const vertices2025 = initChart('plot2025', '2025').vertices;
-            const vertices2075 = initChart('plot2075', '2075').vertices;
-            updateChart('plot2025', data2025, vertices2025);
-            updateChart('plot2075', data2075, vertices2075);
-        });
+            updateStatus(message, className) {
+                this.statusEl.textContent = message;
+                this.statusEl.className = 'status ' + className;
+            }
+        }
+
+        // Initialize both plots
+        new TernaryPlot('canvas2025', 2025, 'status2025');
+        new TernaryPlot('canvas2075', 2075, 'status2075');
     </script>
 </body>
 </html>
