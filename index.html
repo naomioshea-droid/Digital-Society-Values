@@ -317,24 +317,43 @@
 
             async saveToSupabase(coords) {
                 try {
+                    const insertData = {
+                        year: this.year,
+                        ai_usage: Math.round(coords.a * 100),
+                        human_equality: Math.round(coords.b * 100),
+                        climate_change: Math.round(coords.c * 100),
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    console.log('Attempting to insert:', insertData);
+                    
                     const { data, error } = await supabase
-                        .from('ternary_responses')
-                        .insert([
-                            {
-                                year: this.year,
-                                ai_usage: Math.round(coords.a * 100),
-                                human_equality: Math.round(coords.b * 100),
-                                climate_change: Math.round(coords.c * 100),
-                                timestamp: new Date().toISOString()
-                            }
-                        ]);
+                        .from('responses')
+                        .insert([insertData])
+                        .select();
                     
-                    if (error) throw error;
+                    if (error) {
+                        console.error('Supabase error details:', error);
+                        throw error;
+                    }
                     
+                    console.log('Successfully saved:', data);
                     this.updateStatus('✓ Your vision has been recorded!', 'success');
                 } catch (error) {
-                    console.error('Error:', error);
-                    this.updateStatus('Error saving. Please try again.', 'error');
+                    console.error('Full error:', error);
+                    let errorMsg = 'Error saving. ';
+                    
+                    if (error.message) {
+                        errorMsg += error.message;
+                    }
+                    
+                    if (error.code === '42501') {
+                        errorMsg = 'Permission denied. Enable RLS policy in Supabase.';
+                    } else if (error.code === 'PGRST116') {
+                        errorMsg = 'Table not found. Please create the table first.';
+                    }
+                    
+                    this.updateStatus(errorMsg, 'error');
                 }
             }
 
